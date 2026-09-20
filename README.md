@@ -62,7 +62,8 @@
 | `CHANGELOG.md` | 本包版本记录 |
 | `docs/images/xuanjian-preview.png` | 主界面截图 |
 | `docs/sources.md` | 来源记录及核验边界 |
-| `docs/licensing.md` | 当前授权状态 |
+| `docs/licensing.md` | 许可及生成名称使用说明 |
+| `LICENSE` | MIT 许可证与版权声明 |
 | `tests/generator.test.cjs` | 可重复运行的生成逻辑回归测试 |
 | `.gitignore` | 排除系统杂项、凭据文件和临时产物 |
 | `.gitattributes` | 文本行尾设置 |
@@ -81,4 +82,6 @@ node tests/generator.test.cjs
 
 ## 来源与授权
 
-详见 [来源说明](docs/sources.md) 和 [授权状态](docs/licensing.md)。本包未附开源许可证。
+本项目采用 [MIT 许可证](LICENSE)，版权署名为 **ZergSu01**。使用、修改或分发程序时，请按许可证要求保留版权与许可声明。
+
+作者不对生成名称另加使用限制，包括用于商业创作；生成结果不保证独有或不与现有名称重合。详见 [许可说明](docs/licensing.md) 和 [来源说明](docs/sources.md)。
