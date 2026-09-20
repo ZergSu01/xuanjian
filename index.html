@@ -1,0 +1,923 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="完全离线、可输入关键词的玄幻名词生成器。">
+  <title>玄鉴：玄幻名词生成器</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --ink: #0d1211;
+      --panel: rgba(20, 28, 26, .92);
+      --panel-2: rgba(27, 37, 34, .88);
+      --line: rgba(203, 181, 122, .22);
+      --gold: #d7b96f;
+      --gold-bright: #f0d88e;
+      --jade: #8cb9a7;
+      --text: #f1eee4;
+      --muted: #a8b0aa;
+      --danger: #d18d7e;
+      --shadow: 0 18px 60px rgba(0, 0, 0, .32);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 16% 4%, rgba(67, 111, 92, .25), transparent 30rem),
+        radial-gradient(circle at 90% 88%, rgba(136, 98, 42, .12), transparent 28rem),
+        linear-gradient(145deg, #0b100f, #111816 48%, #0a0e0d);
+      font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+      letter-spacing: .01em;
+    }
+
+    button, input, select { font: inherit; }
+
+    button, select { cursor: pointer; }
+
+    button:focus-visible, input:focus-visible, select:focus-visible, summary:focus-visible {
+      outline: 2px solid var(--gold-bright);
+      outline-offset: 3px;
+    }
+
+    .shell {
+      width: min(1120px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 34px 0 54px;
+    }
+
+    .masthead {
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      gap: 24px;
+      margin-bottom: 22px;
+    }
+
+    .brand { display: flex; align-items: center; gap: 16px; }
+
+    .seal {
+      width: 56px;
+      height: 56px;
+      display: grid;
+      place-items: center;
+      border: 1px solid rgba(240, 216, 142, .5);
+      background: linear-gradient(145deg, rgba(215, 185, 111, .2), rgba(140, 185, 167, .07));
+      box-shadow: inset 0 0 0 5px rgba(13, 18, 17, .75), var(--shadow);
+      color: var(--gold-bright);
+      font: 700 24px/1 "Songti SC", "STSong", serif;
+      transform: rotate(-2deg);
+    }
+
+    h1 {
+      margin: 0;
+      font: 700 clamp(28px, 5vw, 44px)/1.08 "Songti SC", "STSong", serif;
+      letter-spacing: .12em;
+    }
+
+    .subtitle { margin: 8px 0 0; color: var(--muted); font-size: 14px; }
+
+    .offline {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 8px 11px;
+      border: 1px solid rgba(140, 185, 167, .28);
+      border-radius: 99px;
+      color: #c8ddd4;
+      background: rgba(82, 124, 107, .1);
+      font-size: 13px;
+      white-space: nowrap;
+    }
+
+    .offline::before {
+      content: "";
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #78b99c;
+      box-shadow: 0 0 12px rgba(120, 185, 156, .8);
+    }
+
+    .workspace {
+      display: grid;
+      grid-template-columns: minmax(270px, 340px) minmax(0, 1fr);
+      gap: 18px;
+      align-items: start;
+    }
+
+    .card {
+      border: 1px solid var(--line);
+      background: linear-gradient(160deg, var(--panel), rgba(14, 20, 18, .96));
+      box-shadow: var(--shadow);
+      border-radius: 18px;
+      overflow: hidden;
+    }
+
+    .controls { padding: 22px; position: sticky; top: 18px; }
+
+    .eyebrow {
+      margin: 0 0 15px;
+      color: var(--gold);
+      font-size: 12px;
+      letter-spacing: .18em;
+      text-transform: uppercase;
+    }
+
+    .field { margin-bottom: 17px; }
+    .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    [hidden] { display: none !important; }
+
+    label {
+      display: block;
+      margin-bottom: 7px;
+      color: #d9ded9;
+      font-size: 13px;
+    }
+
+    input, select {
+      width: 100%;
+      min-height: 44px;
+      border: 1px solid rgba(215, 185, 111, .2);
+      border-radius: 10px;
+      padding: 0 12px;
+      color: var(--text);
+      background: #111816;
+      transition: border-color .18s, box-shadow .18s;
+    }
+
+    input::placeholder { color: #707a74; }
+    input:hover, select:hover { border-color: rgba(215, 185, 111, .42); }
+
+    .hint {
+      margin: -8px 0 17px;
+      color: #7f8b84;
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .primary {
+      width: 100%;
+      min-height: 50px;
+      border: 1px solid rgba(240, 216, 142, .62);
+      border-radius: 11px;
+      color: #171b17;
+      background: linear-gradient(135deg, #ead48c, #c8a65d);
+      box-shadow: 0 10px 28px rgba(190, 152, 69, .2);
+      font-weight: 750;
+      letter-spacing: .12em;
+      transition: transform .16s, filter .16s;
+    }
+
+    .primary:hover { filter: brightness(1.06); transform: translateY(-1px); }
+    .primary:active { transform: translateY(1px); }
+
+    .micro {
+      margin-top: 14px;
+      color: #79847e;
+      text-align: center;
+      font-size: 12px;
+      line-height: 1.55;
+    }
+
+    .results-card { min-height: 580px; }
+
+    .results-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 19px 20px 17px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .results-title { margin: 0; font: 650 19px/1.2 "Songti SC", "STSong", serif; letter-spacing: .08em; }
+    .results-meta { margin: 5px 0 0; color: var(--muted); font-size: 12px; }
+
+    .ghost {
+      min-height: 36px;
+      border: 1px solid rgba(215, 185, 111, .22);
+      border-radius: 9px;
+      padding: 0 12px;
+      color: #d9d0b6;
+      background: rgba(215, 185, 111, .06);
+    }
+
+    .ghost:hover { border-color: rgba(215, 185, 111, .5); background: rgba(215, 185, 111, .11); }
+
+    .results {
+      list-style: none;
+      margin: 0;
+      padding: 8px 14px 16px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0 10px;
+    }
+
+    .result {
+      display: grid;
+      grid-template-columns: 28px minmax(0, 1fr) 38px 38px;
+      gap: 6px;
+      align-items: center;
+      min-height: 66px;
+      border-bottom: 1px solid rgba(215, 185, 111, .1);
+      padding: 8px 3px;
+    }
+
+    .num { color: #65716b; font: 12px/1 ui-monospace, SFMono-Regular, Menlo, monospace; }
+
+    .name {
+      overflow-wrap: anywhere;
+      color: #f4f0e6;
+      font: 650 clamp(18px, 2.7vw, 23px)/1.3 "Songti SC", "STSong", serif;
+      letter-spacing: .09em;
+    }
+
+    .icon-btn {
+      width: 36px;
+      height: 36px;
+      display: grid;
+      place-items: center;
+      border: 0;
+      border-radius: 9px;
+      color: #8d9992;
+      background: transparent;
+      font-size: 17px;
+    }
+
+    .icon-btn:hover { color: var(--gold-bright); background: rgba(215, 185, 111, .09); }
+    .icon-btn.saved { color: var(--gold-bright); }
+
+    .below { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-top: 18px; }
+
+    details.card { padding: 0; }
+    summary {
+      padding: 18px 20px;
+      cursor: pointer;
+      color: #d8d4c7;
+      font-weight: 650;
+      list-style: none;
+    }
+    summary::-webkit-details-marker { display: none; }
+    summary::after { content: "＋"; float: right; color: var(--gold); }
+    details[open] summary::after { content: "－"; }
+
+    .detail-body {
+      padding: 0 20px 20px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.75;
+    }
+
+    .detail-body p { margin: 0 0 10px; }
+    .detail-body ul { margin: 8px 0 0; padding-left: 19px; }
+    .detail-body a { color: #b8d7c9; text-underline-offset: 3px; }
+
+    .favorites { padding: 18px 20px 20px; }
+    .favorites-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+    .favorites h2 { margin: 0; font-size: 15px; }
+    .clear { border: 0; color: #8f9993; background: transparent; padding: 4px 0; }
+    .clear:hover { color: var(--danger); }
+
+    .favorite-list { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 15px; min-height: 30px; }
+    .fav-chip {
+      border: 1px solid rgba(140, 185, 167, .22);
+      border-radius: 999px;
+      padding: 7px 10px;
+      color: #cfddd7;
+      background: rgba(140, 185, 167, .07);
+      font-family: "Songti SC", "STSong", serif;
+      font-size: 15px;
+    }
+    .empty { color: #6f7a74; font-size: 12px; }
+
+    .toast {
+      position: fixed;
+      left: 50%;
+      bottom: 24px;
+      z-index: 10;
+      transform: translate(-50%, 18px);
+      padding: 10px 14px;
+      border: 1px solid rgba(215, 185, 111, .28);
+      border-radius: 10px;
+      color: var(--text);
+      background: #18201e;
+      box-shadow: var(--shadow);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity .18s, transform .18s;
+      font-size: 13px;
+    }
+    .toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+    footer { margin-top: 20px; color: #6f7973; text-align: center; font-size: 12px; }
+
+    @media (max-width: 790px) {
+      .shell { width: min(100% - 22px, 660px); padding-top: 22px; }
+      .masthead { align-items: start; }
+      .offline { display: none; }
+      .workspace { grid-template-columns: 1fr; }
+      .controls { position: static; }
+      .results { grid-template-columns: 1fr; }
+      .below { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 430px) {
+      .brand { align-items: start; gap: 12px; }
+      .seal { width: 48px; height: 48px; }
+      h1 { font-size: 28px; }
+      .field-row { grid-template-columns: 1fr; }
+      .results-head { align-items: start; }
+      .result { grid-template-columns: 25px minmax(0, 1fr) 34px 34px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <header class="masthead">
+      <div class="brand">
+        <div class="seal" aria-hidden="true">玄</div>
+        <div>
+          <h1>玄鉴</h1>
+          <p class="subtitle">玄幻名词生成器 · 每次十个 · 完全离线</p>
+        </div>
+      </div>
+      <div class="offline">本地运行，不上传输入</div>
+    </header>
+
+    <section class="workspace" aria-label="名词生成器">
+      <form class="card controls" id="generatorForm">
+        <p class="eyebrow">生成设定</p>
+
+        <div class="field">
+          <label for="category">总类别</label>
+          <select id="category">
+            <optgroup label="人物与名号">
+              <option value="person">人物姓名</option>
+              <option value="title">道号 / 法号</option>
+            </optgroup>
+            <optgroup label="修炼与术法">
+              <option value="skill" selected>功法招式</option>
+              <option value="book">秘籍典籍</option>
+              <option value="secret">秘术神通</option>
+              <option value="formation">阵法禁制</option>
+              <option value="physique">体质血脉</option>
+            </optgroup>
+            <optgroup label="器物与资源">
+              <option value="artifact">法宝兵器</option>
+              <option value="pill">丹药灵液</option>
+              <option value="material">材料矿物</option>
+            </optgroup>
+            <optgroup label="生灵与势力">
+              <option value="creature">生灵异兽</option>
+              <option value="sect">门派宗门</option>
+              <option value="organization">机构组织</option>
+              <option value="country">国家部族</option>
+            </optgroup>
+            <optgroup label="地理与空间">
+              <option value="place">据点地名</option>
+              <option value="zone">地域大陆</option>
+              <option value="realm">秘境洞天</option>
+            </optgroup>
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="subtype" id="subtypeLabel">下级分类</label>
+          <select id="subtype"></select>
+        </div>
+
+        <div class="field">
+          <label for="keyword">关键词（可不填）</label>
+          <input id="keyword" type="text" maxlength="6" autocomplete="off" placeholder="例如：北冥、雪、剑">
+        </div>
+        <p class="hint">输入 1–6 个汉字；“开头 / 中间 / 末尾”会严格对应成品名称的首部、内部与最后位置。</p>
+
+        <div class="field-row" id="specialOptions">
+          <div class="field" id="genderField" hidden>
+            <label for="gender">性别</label>
+            <select id="gender">
+              <option value="random" selected>随机</option>
+              <option value="male">男</option>
+              <option value="female">女</option>
+            </select>
+          </div>
+          <div class="field" id="surnameField" hidden>
+            <label for="surname">指定姓氏（可不填）</label>
+            <input id="surname" type="text" maxlength="4" autocomplete="off" placeholder="例如：沈、司马">
+          </div>
+        </div>
+
+        <div class="field-row">
+          <div class="field">
+            <label for="style">命名风格</label>
+            <select id="style">
+              <option value="mixed" selected>混合</option>
+              <option value="archaic">古朴</option>
+              <option value="immortal">仙侠</option>
+              <option value="jianghu">江湖</option>
+              <option value="daoist">道门</option>
+              <option value="buddhist">佛门</option>
+              <option value="demonic">魔道</option>
+              <option value="yaoyi">妖异</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="placement">关键词位置</label>
+            <select id="placement">
+              <option value="auto" selected>自动融合</option>
+              <option value="front">放在开头</option>
+              <option value="middle">放在中间</option>
+              <option value="end">放在末尾</option>
+            </select>
+          </div>
+        </div>
+
+        <button class="primary" type="submit">生成十个</button>
+        <p class="micro">按回车也能生成。结果自动去重；点 ☆ 收藏，点复制图标复制单项。</p>
+      </form>
+
+      <section class="card results-card" aria-live="polite">
+        <div class="results-head">
+          <div>
+            <h2 class="results-title">候选名录</h2>
+            <p class="results-meta" id="resultsMeta">功法招式 · 随机类别 · 混合风格 · 10 个结果</p>
+          </div>
+          <button class="ghost" type="button" id="copyAll">复制全部</button>
+        </div>
+        <ol class="results" id="results"></ol>
+      </section>
+    </section>
+
+    <section class="below">
+      <section class="card favorites">
+        <div class="favorites-head">
+          <h2>已收藏</h2>
+          <button class="clear" id="clearFavorites" type="button">清空</button>
+        </div>
+        <div class="favorite-list" id="favoriteList"></div>
+      </section>
+
+      <details class="card">
+        <summary>词库来源与使用说明</summary>
+        <div class="detail-body">
+          <p>词库以公版古籍原文中的地貌、天象、草木、神兽与哲学词素为底，再按“功法、宗门、器物、地名”等类别分别组合。原文只用于核查词义和构词语感；生成结果是新的随机组合，不代表原文词句。</p>
+          <p>分类层级参考了原项目的实际源码，但没有照搬：总类别进一步归入“人物与名号、修炼与术法、器物与资源、生灵与势力、地理与空间”五组；下级分类优先按写作时真正会用到的修炼方向、器物形制、组织职能、地点形态与丹药功用划分。</p>
+          <ul>
+            <li><a href="https://ctext.org/shan-hai-jing/zh" target="_blank" rel="noreferrer">《山海经》原文</a>：山川、水系、草木、矿物、异兽类词素。</li>
+            <li><a href="https://ctext.org/huainanzi/zh" target="_blank" rel="noreferrer">《淮南子》原文</a>：天文、阴阳、四时、八极、清浊等宇宙观词素。</li>
+            <li><a href="https://ctext.org/chu-ci/zh" target="_blank" rel="noreferrer">《楚辞》原文</a>：云旗、兰蕙、洞庭、九歌等意象与节奏参考。</li>
+            <li><a href="https://github.com/hythl0day/random_chinese_fantasy_names" target="_blank" rel="noreferrer">原随机生成项目</a>：仅参考“本地词库 + 规则随机”的产品思路；本页代码、界面、词库与组合规则均重新编写。</li>
+          </ul>
+          <p style="margin-top:12px">说明：佛、道传统术语按所属风格单独分池；现代玄幻作品的完整专名没有被收入。页面不连接网络，只有您主动点击上面的来源链接时才会打开网站。</p>
+        </div>
+      </details>
+    </section>
+
+    <footer>玄鉴 v1.3 · 关键词位置规则修复于 2026-08-29 · 单文件离线版</footer>
+  </main>
+
+  <div class="toast" id="toast" role="status"></div>
+
+  <script>
+    "use strict";
+
+    const POOLS = {
+      archaic: ["窈冥", "寂漠", "混茫", "荒忽", "容与", "清泠", "浩荡", "玄同", "冲和", "素朴", "太初", "浑沌", "八极", "大荒", "归墟", "空桑", "不周", "姑射", "弱水", "赤水", "玄丘", "洞庭", "云梦", "苍梧"],
+      immortal: ["玄天", "苍穹", "紫微", "九霄", "无极", "太虚", "混元", "星垣", "曜灵", "元辰", "鸿蒙", "两仪", "四象", "云汉", "碧落", "天纪", "斗极", "玉衡", "瑶光", "灵台", "仙都", "琼华", "飞霞", "灵霄"],
+      jianghu: ["长风", "孤鸿", "寒江", "暮雨", "断岳", "惊涛", "铁衣", "落日", "朔雁", "青锋", "回雪", "烟波", "秋水", "听潮", "横舟", "归雁", "洗剑", "踏歌", "问酒", "孤城", "远客", "沧浪", "残阳", "夜雨"],
+      daoist: ["太上", "上清", "玉清", "太清", "洞玄", "灵宝", "道微", "冲虚", "守一", "抱朴", "清静", "玄门", "三清", "五雷", "北斗", "黄庭", "紫府", "元始", "真一", "自然", "一炁", "雷部", "丹鼎", "龙虎"],
+      buddhist: ["般若", "菩提", "金刚", "明王", "莲华", "净业", "寂照", "圆觉", "无相", "无生", "梵音", "法轮", "须弥", "慈航", "禅月", "琉璃", "宝相", "渡厄", "妙谛", "空门", "觉海", "三昧", "摩诃", "净土"],
+      demonic: ["幽冥", "玄阴", "血煞", "劫火", "余烬", "蚀月", "无间", "夜魇", "鬼蜮", "尸山", "黄泉", "九幽", "黑日", "寒狱", "断魂", "业火", "魔渊", "罗刹", "修罗", "骨狱", "天魔", "离魂", "吞天", "葬星"],
+      yaoyi: ["青丘", "白泽", "朱厌", "毕方", "烛龙", "应龙", "玄螭", "山魈", "鹿蜀", "英招", "穷奇", "鸾羽", "龙鳞", "虎魄", "蛇蜕", "鲲羽", "九尾", "玄龟", "赤豹", "文狸", "狐岐", "羽民", "玄蜂", "蛟影"]
+    };
+
+    const WORDS = {
+      surnames: ["顾", "谢", "沈", "陆", "裴", "萧", "楚", "秦", "苏", "叶", "宁", "温", "晏", "江", "燕", "商", "白", "闻", "钟", "容", "柳", "林", "周", "卫", "孟", "杜", "许", "程", "纪", "韩", "唐", "宋", "洛", "殷", "齐", "简"],
+      compoundSurnames: ["司马", "公孙", "慕容", "夏侯", "东方", "南宫", "上官", "诸葛", "欧阳", "皇甫", "令狐", "宇文", "长孙", "闻人"],
+      maleA: ["承", "景", "昭", "玄", "长", "云", "凌", "闻", "照", "行", "守", "怀", "知", "归", "靖", "朔", "沉", "岳", "彻", "峥", "渊", "修", "远", "征", "晏", "川"],
+      maleB: ["川", "渊", "霄", "朔", "宁", "安", "遥", "舟", "岳", "珩", "砚", "臣", "昭", "野", "衡", "尘", "弦", "峤", "澈", "修", "远", "征", "白", "辞", "真", "烛"],
+      femaleA: ["清", "若", "疏", "云", "月", "青", "晚", "含", "昭", "宁", "微", "瑶", "灵", "绾", "楚", "兰", "蘅", "霁", "雪", "容", "念", "知", "采", "梦", "汀", "华"],
+      femaleB: ["微", "宁", "岚", "秋", "离", "澜", "歌", "羽", "昭", "蘅", "月", "棠", "音", "仪", "华", "璇", "汀", "芷", "遥", "晞", "霏", "柔", "鸢", "妤", "雪", "容"],
+      givenA: ["玄", "清", "长", "昭", "怀", "景", "云", "凌", "闻", "知", "照", "望", "行", "守", "明", "若", "归", "止", "见", "忘", "惊", "孤", "无", "星", "月", "青", "寒", "沉", "疏", "容"],
+      givenB: ["微", "衡", "真", "川", "渊", "尘", "霄", "晦", "朔", "宁", "安", "遥", "白", "岚", "秋", "烛", "离", "野", "澜", "舟", "岳", "弦", "生", "夜", "羽", "珩", "砚", "歌", "臣", "昭"],
+      virtualChars: ["之", "以", "亦", "若", "如", "其", "于", "可", "未", "无"],
+      titles: ["子", "真人", "散人", "上人", "居士", "道君", "真君", "尊者", "禅师", "法师", "先生", "剑主", "山人", "客", "君", "侯", "圣手", "老祖"],
+      sectEnds: ["宗", "门", "宫", "观", "山", "谷", "院", "寺", "教", "盟", "会", "楼", "阁", "台", "剑派", "道场"],
+      skillEnds: ["诀", "经", "典", "录", "谱", "法", "功", "篇", "图", "要术", "真解", "秘章", "玄册", "心法"],
+      bookEnds: ["经", "典", "录", "谱", "图", "篇", "真解", "秘章", "玄册", "玉简", "残卷", "道书", "宝录", "总纲"],
+      secretEnds: ["术", "印", "咒", "禁", "秘法", "神通", "遁", "变", "劫", "指", "掌", "眼", "身", "斩"],
+      artifactEnds: ["剑", "刀", "印", "镜", "幡", "钟", "鼎", "炉", "尺", "环", "珠", "舟", "灯", "铃", "甲", "弓", "扇", "伞", "碑", "匣", "塔", "琴", "枪", "轮"],
+      formationEnds: ["阵", "禁阵", "大阵", "法界", "阵图", "结界", "天门阵", "锁界阵"],
+      pillEnds: ["丹", "散", "丸", "膏", "露", "液", "浆", "玉髓", "灵酿"],
+      materialEnds: ["铁", "金", "玉", "晶", "砂", "髓", "木", "石", "露", "液", "火", "冰", "藤", "芝", "兰", "果", "叶", "花", "骨"],
+      creatureEnds: ["龙", "蛟", "螭", "凤", "鸾", "狐", "狼", "猿", "狰", "猊", "魈", "鹏", "鹤", "鸦", "蝶", "蝉", "蜂", "蛇", "龟", "鲸", "鲤", "鹿", "虎", "豹"],
+      placeEnds: ["山", "峰", "岭", "谷", "川", "泽", "湖", "渊", "城", "关", "渡", "原", "海", "岛", "洞", "墟", "台", "崖", "州", "河", "峡", "窟"],
+      realmEnds: ["境", "天", "界", "府", "宫", "墟", "洞天", "福地", "神藏", "古域", "小界", "遗府"],
+      zoneEnds: ["洲", "大陆", "界", "域", "海", "洋", "天域", "荒原", "星海", "虚空"],
+      countryEnds: ["国", "朝", "庭", "部", "王庭", "古国", "帝朝", "汗庭", "侯国", "诸部"],
+      orgEnds: ["司", "阁", "会", "盟", "堂", "楼", "台", "院", "卫", "监", "府", "馆", "行", "局", "营", "殿"],
+      bodyEnds: ["体", "骨", "脉", "瞳", "心", "胎", "灵根", "命格", "血脉", "道基", "神藏", "法身"],
+      actions: ["斩", "镇", "御", "摄", "照", "渡", "裂", "归", "问", "观", "听", "逐", "引", "化", "断", "藏", "守", "破", "封", "炼", "吞", "伏", "惊", "落", "焚", "洗", "葬", "开", "灭", "生"],
+      essences: ["风", "雷", "云", "霜", "雪", "炎", "日", "月", "星", "水", "木", "金", "土", "光", "影", "梦", "魂", "气", "血", "骨", "心", "神", "灵", "虚", "空", "生", "死", "阴", "阳", "剑", "龙", "莲"],
+      measures: ["一气", "两仪", "三元", "四象", "五行", "六合", "七曜", "八荒", "九转", "十方", "十二重", "小周天", "大周天", "万象", "无量", "先天", "太始", "太初"],
+      qualities: ["玄", "苍", "青", "赤", "素", "紫", "金", "玉", "幽", "明", "真", "灵", "古", "荒", "极", "太", "无", "元", "神", "天", "地", "阴", "阳", "混", "清", "浊", "寂", "空", "幻", "曜"],
+      flora: ["兰", "蕙", "桂", "杜衡", "辛夷", "荃", "若木", "扶桑", "薜荔", "白芷", "灵芝", "丹木", "建木", "菅蕙", "华草", "帝休", "迷榖", "木禾", "嘉荣", "沙棠", "祝余", "葵藿", "紫茎", "若英"],
+      terrain: ["昆仑", "不周", "幽都", "弱水", "流沙", "钟山", "招摇", "青丘", "洞庭", "九河", "泑水", "玄丘", "空桑", "姑射", "天池", "云梦", "苍梧", "归墟", "大荒", "赤水", "旸谷", "槐江", "玉山", "崦嵫"]
+    };
+
+    const LABELS = {
+      person: "人物姓名", title: "道号 / 法号", skill: "功法招式", book: "秘籍典籍", creature: "生灵异兽",
+      material: "材料矿物", pill: "丹药灵液", artifact: "法宝兵器", sect: "门派宗门", country: "国家部族",
+      place: "据点地名", zone: "地域大陆", secret: "秘术神通", formation: "阵法禁制", realm: "秘境洞天",
+      organization: "机构组织", physique: "体质血脉"
+    };
+
+    const SUBTYPE_OPTIONS = {
+      person: { label: "姓名形式", items: [["any", "不限形式"], ["single", "单字名"], ["double", "双字名"], ["combine", "虚字＋实字名"], ["compound", "复姓姓名"]] },
+      title: { label: "名号体系", items: [["any", "不限体系"], ["dao", "道门道号"], ["dharma", "佛门法号"], ["honor", "尊号封号"], ["jianghu", "江湖名号"]] },
+      skill: { label: "修炼方向", items: [["any", "不限方向"], ["sword", "剑道剑法"], ["blade", "刀道刀法"], ["spear", "枪戟长兵"], ["boxing", "拳掌指爪"], ["movement", "身法遁术"], ["internal", "吐纳内炼"], ["body", "炼体锻骨"], ["beast", "御兽通灵"], ["soul", "神魂观想"], ["thunder", "雷属术法"], ["fire", "火属术法"], ["ice", "冰寒术法"], ["poison", "毒蛊邪功"]] },
+      book: { label: "典籍内容", items: [["any", "不限内容"], ["skillbook", "功法秘本"], ["alchemybook", "丹经药典"], ["formationbook", "阵图禁录"], ["craftbook", "炼器谱录"], ["beastbook", "异兽草木志"], ["historybook", "史书杂记"], ["mapbook", "山川舆图"]] },
+      creature: { label: "生灵形态", items: [["any", "不限形态"], ["plant", "草木灵植"], ["worm", "软体虫类（赢虫）"], ["fish", "水族鱼类"], ["beast", "走兽"], ["bird", "飞禽"], ["reptile", "鳞介爬虫"], ["insect", "甲虫虫豸"]] },
+      material: { label: "材料来源", items: [["any", "不限来源"], ["metal", "金石矿材"], ["jade", "玉石灵晶"], ["herb", "灵植药材"], ["wood", "灵木藤材"], ["liquid", "灵液露髓"], ["flame", "异火寒髓"], ["bone", "兽骨鳞羽"]] },
+      pill: { label: "丹药功用", items: [["any", "不限功用"], ["healing", "疗伤续骨"], ["restore", "回气养元"], ["breakthrough", "破境开脉"], ["body", "淬体锻骨"], ["soul", "养魂定神"], ["poison", "毒丹蛊药"], ["lifespan", "延寿驻颜"]] },
+      artifact: { label: "器物形制", items: [["any", "不限形制"], ["sword", "剑器"], ["blade", "刀兵"], ["spear", "枪戟长兵"], ["seal", "印玺"], ["mirror", "宝镜"], ["banner", "幡旗"], ["bell", "钟铃鼓"], ["furnace", "鼎炉"], ["armor", "护身甲衣"], ["flight", "飞行法器"], ["odd", "奇门杂器"]] },
+      sect: { label: "势力性质", items: [["any", "不限性质"], ["sect", "修行宗门"], ["palace", "宫观道场"], ["temple", "佛寺禅院"], ["guild", "江湖帮会"], ["academy", "书院学宫"], ["merchant", "商会行楼"], ["fort", "山庄寨堡"]] },
+      country: { label: "国家形态", items: [["any", "不限形态"], ["state", "邦国侯国"], ["dynasty", "皇朝帝国"], ["tribe", "氏族部落"], ["alliance", "诸国联盟"], ["court", "草原王庭"]] },
+      place: { label: "地点形态", items: [["any", "不限形态"], ["city", "城镇邑市"], ["village", "村寨聚落"], ["fort", "关隘堡垒"], ["market", "坊市渡津"], ["sectplace", "宗门驻地"], ["mountain", "山岭谷地"], ["water", "江河湖泽"], ["cave", "洞府窟穴"], ["ruin", "遗迹废墟"]] },
+      zone: { label: "地域尺度", items: [["any", "不限地域"], ["continent", "大陆洲域"], ["mountainzone", "山川地带"], ["wilderness", "荒原绝域"], ["water", "海域水国"], ["underworld", "地底幽域"], ["void", "虚空界域"], ["star", "星域天区"]] },
+      secret: { label: "术法性质", items: [["any", "不限性质"], ["escape", "遁术身法"], ["curse", "咒术真言"], ["seal", "手印印法"], ["eye", "瞳术神目"], ["forbidden", "禁术祭法"], ["divine", "天赋神通"], ["change", "变化化形"], ["summon", "召唤役使"]] },
+      formation: { label: "阵法功能", items: [["any", "不限功能"], ["attack", "攻杀"], ["defense", "守御"], ["trap", "困缚"], ["illusion", "幻惑"], ["gather", "聚灵"], ["teleport", "传送挪移"], ["seal", "封印镇压"]] },
+      realm: { label: "秘境性质", items: [["any", "不限性质"], ["cave", "洞天福地"], ["ruin", "古墟遗府"], ["smallworld", "独立小界"], ["trial", "试炼之境"], ["forbidden", "禁地绝域"]] },
+      organization: { label: "组织职能", items: [["any", "不限职能"], ["government", "官署卫所"], ["guild", "宗派结社"], ["intelligence", "监察情报"], ["assassin", "刺客杀手"], ["merchant", "商行拍卖"], ["academy", "学宫馆阁"]] },
+      physique: { label: "先天禀赋", items: [["any", "不限禀赋"], ["body", "特殊体质"], ["bone", "根骨道骨"], ["blood", "血脉真血"], ["eye", "灵瞳神目"], ["root", "灵根异根"], ["fate", "命格命星"], ["dao", "道体法身"]] }
+    };
+
+    const SUBTYPE_ENDINGS = {
+      title: { dao: ["真人", "道君", "真君", "散人", "山人"], dharma: ["禅师", "法师", "尊者", "上人", "居士"], honor: ["天君", "帝君", "圣君", "尊者", "老祖"], jianghu: ["剑主", "刀君", "客", "先生", "圣手"] },
+      skill: { sword: ["剑诀", "剑法", "剑经"], blade: ["刀诀", "刀法", "刀经"], spear: ["枪法", "枪诀", "戟法"], boxing: ["拳", "掌", "指法", "拳经"], movement: ["步", "身法", "遁法", "轻功"], internal: ["内功", "心法", "气诀"], body: ["炼体诀", "锻骨功", "金身法"], beast: ["御兽诀", "通灵术", "驭灵法"], soul: ["魂诀", "炼神法", "观想篇"], thunder: ["雷法", "雷诀", "雷经"], fire: ["火法", "炎诀", "火经"], ice: ["冰诀", "寒功", "玄冰经"], poison: ["毒经", "毒功", "蛊术"] },
+      book: { skillbook: ["真经", "秘典", "心法", "要诀"], alchemybook: ["丹经", "药典", "本草", "炉录"], formationbook: ["阵图", "禁录", "阵解", "图经"], craftbook: ["器谱", "铸录", "炼器经", "火候篇"], beastbook: ["兽谱", "异兽志", "灵禽录", "草木图"], historybook: ["纪", "志", "杂记", "遗闻录"], mapbook: ["舆图", "山川志", "水经", "地脉图"] },
+      creature: { plant: ["草", "木", "藤", "芝", "兰", "花"], worm: ["蚯蚓", "蠕虫", "蛭", "蚕"], fish: ["鱼", "鲤", "鲸", "鳌"], beast: ["狐", "狼", "猿", "鹿", "虎", "豹", "兽"], bird: ["鸾", "鹤", "鸦", "鹏", "雕", "禽"], reptile: ["蛇", "龟", "蜥", "鳄", "蛟"], insect: ["蝶", "蝉", "蜂", "甲虫", "螳螂"] },
+      material: { metal: ["铁", "金", "铜", "银", "矿"], jade: ["玉", "晶", "石", "琉璃"], herb: ["芝", "兰", "草", "花", "果", "叶"], wood: ["木", "藤", "枝", "根"], liquid: ["露", "液", "浆", "髓"], flame: ["火", "炎", "焰", "冰", "霜晶"], bone: ["骨", "角", "皮", "鳞", "羽"] },
+      pill: { healing: ["回春丹", "生肌散", "续骨膏"], restore: ["回元丹", "聚气散", "灵露"], breakthrough: ["破境丹", "通玄丸", "开脉丹"], body: ["锻骨丹", "淬体液", "金身丸"], soul: ["养魂丹", "定神散", "凝魄露"], poison: ["蚀骨散", "断魂丹", "腐灵液"], lifespan: ["延寿丹", "长生露", "驻颜丸"] },
+      artifact: { sword: ["剑"], blade: ["刀"], spear: ["枪", "戟", "矛"], seal: ["印", "玺"], mirror: ["镜"], banner: ["幡", "旗"], bell: ["钟", "铃", "鼓"], furnace: ["鼎", "炉"], armor: ["甲", "衣", "冠", "履"], flight: ["舟", "梭", "辇"], odd: ["尺", "环", "珠", "灯", "扇", "伞", "碑", "塔", "琴", "轮"] },
+      sect: { sect: ["宗", "门", "剑派"], palace: ["宫", "观", "道场"], temple: ["寺", "禅院", "庵"], guild: ["帮", "会", "盟", "堂"], academy: ["书院", "学宫", "院"], merchant: ["商会", "行", "楼", "阁"], fort: ["寨", "山庄", "堡", "坞"] },
+      country: { state: ["国", "侯国"], dynasty: ["朝", "帝朝", "皇朝"], tribe: ["部", "部落", "诸部"], alliance: ["联盟", "诸邦", "盟国"], court: ["王庭", "汗庭", "庭"] },
+      place: { city: ["城", "镇", "邑", "市"], village: ["村", "寨", "坞"], fort: ["关", "堡", "塞", "营"], market: ["坊", "市", "渡", "津"], sectplace: ["宫", "观", "寺", "院", "山门"], mountain: ["山", "峰", "岭", "谷", "崖"], water: ["川", "泽", "湖", "渊", "河", "海"], cave: ["洞", "窟", "府"], ruin: ["墟", "遗址", "古台", "废城"] },
+      zone: { continent: ["大陆", "洲", "陆", "疆域"], mountainzone: ["山脉", "岭域", "山川", "高原"], wilderness: ["荒原", "大荒", "绝域", "冻土"], water: ["海", "洋", "泽国", "水域"], underworld: ["地渊", "幽域", "地窟", "冥土"], void: ["界", "虚空", "天域", "界隙"], star: ["星域", "星海", "天区", "星界"] },
+      secret: { escape: ["遁", "遁术", "身法"], curse: ["咒", "咒术", "真言"], seal: ["印", "印法", "手印"], eye: ["瞳术", "天眼", "神目"], forbidden: ["禁术", "秘禁", "血祭"], divine: ["神通", "大神通", "法相"], change: ["变", "变化术", "化形法"], summon: ["召灵术", "役鬼法", "请神术"] },
+      formation: { attack: ["杀阵", "剑阵", "雷阵"], defense: ["守阵", "护山阵", "法界"], trap: ["困阵", "锁界阵", "禁阵"], illusion: ["幻阵", "迷阵", "蜃景阵"], gather: ["聚灵阵", "引脉阵", "蕴气阵"], teleport: ["挪移阵", "传送阵", "星门阵"], seal: ["封印阵", "镇魔阵", "锁灵阵"] },
+      realm: { cave: ["洞天", "福地", "仙府"], ruin: ["古墟", "遗府", "残宫"], smallworld: ["小界", "秘界", "天境"], trial: ["试炼境", "问心路", "战境"], forbidden: ["禁地", "绝域", "死境"] },
+      organization: { government: ["司", "监", "府", "卫"], guild: ["会", "盟", "堂", "院"], intelligence: ["台", "阁", "司", "馆"], assassin: ["楼", "门", "殿", "堂"], merchant: ["行", "商会", "楼", "阁"], academy: ["书院", "馆", "阁", "院"] },
+      physique: { body: ["体", "圣体", "灵体"], bone: ["骨", "仙骨", "道骨"], blood: ["血脉", "真血", "祖脉"], eye: ["瞳", "灵瞳", "神目"], root: ["灵根", "天根", "异根"], fate: ["命格", "命星", "天命"], dao: ["道体", "法身", "神藏"] }
+    };
+
+    const STYLE_LABELS = {
+      mixed: "混合风格", archaic: "古朴", immortal: "仙侠", jianghu: "江湖", daoist: "道门", buddhist: "佛门", demonic: "魔道", yaoyi: "妖异"
+    };
+
+    const PLACEMENT_LABELS = {
+      auto: "自动融合", front: "关键词在开头", middle: "关键词在中间", end: "关键词在末尾"
+    };
+
+    const MIDDLE_GUARDS = {
+      title: ["号", "尊"], skill: ["式", "法"], book: ["篇", "录"], creature: ["灵", "兽"],
+      material: ["材", "精"], pill: ["丸", "散"], artifact: ["器", "宝"], sect: ["门", "派"],
+      country: ["邦", "庭"], place: ["地", "境"], zone: ["域", "境"], secret: ["术", "法"],
+      formation: ["阵", "禁"], realm: ["境", "界"], organization: ["会", "署"], physique: ["体", "脉"]
+    };
+
+    const $ = (selector) => document.querySelector(selector);
+    const state = { results: [], favorites: loadFavorites() };
+
+    function randomInt(max) {
+      if (max <= 0) return 0;
+      if (window.crypto && window.crypto.getRandomValues) {
+        const limit = Math.floor(0x100000000 / max) * max;
+        const values = new Uint32Array(1);
+        do window.crypto.getRandomValues(values); while (values[0] >= limit);
+        return values[0] % max;
+      }
+      return Math.floor(Math.random() * max);
+    }
+
+    function pick(array) { return array[randomInt(array.length)]; }
+    function chance(percent) { return randomInt(100) < percent; }
+
+    function subtypeLabel(category, value) {
+      return SUBTYPE_OPTIONS[category].items.find(item => item[0] === value)?.[1] || "随机";
+    }
+
+    function updateCategoryControls() {
+      const category = $("#category").value;
+      const config = SUBTYPE_OPTIONS[category];
+      const subtype = $("#subtype");
+      $("#subtypeLabel").textContent = config.label;
+      subtype.textContent = "";
+      config.items.forEach(([value, label]) => {
+        const option = document.createElement("option");
+        option.value = value;
+        option.textContent = label;
+        subtype.appendChild(option);
+      });
+      $("#genderField").hidden = !["person", "title"].includes(category);
+      $("#surnameField").hidden = category !== "person";
+    }
+
+    function endingsFor(category, subtype, gender) {
+      if (category === "title" && subtype === "any") {
+        if (gender === "female") return ["仙子", "元君", "道姑", "神女", "真人", "居士"];
+        if (gender === "male") return ["真人", "道君", "真君", "先生", "剑主", "山人"];
+      }
+      const selected = SUBTYPE_ENDINGS[category]?.[subtype];
+      if (selected) return selected;
+      const defaults = {
+        title: WORDS.titles, skill: WORDS.skillEnds, book: WORDS.bookEnds, creature: WORDS.creatureEnds,
+        material: WORDS.materialEnds, pill: WORDS.pillEnds, artifact: WORDS.artifactEnds, sect: WORDS.sectEnds,
+        country: WORDS.countryEnds, place: WORDS.placeEnds, zone: WORDS.zoneEnds, secret: WORDS.secretEnds,
+        formation: WORDS.formationEnds, realm: WORDS.realmEnds, organization: WORDS.orgEnds, physique: WORDS.bodyEnds
+      };
+      return defaults[category] || [""];
+    }
+
+    function resolvedGender(gender) {
+      return gender === "random" ? pick(["male", "female"]) : gender;
+    }
+
+    function buildPerson(keyword, placement, subtype, gender, specifiedSurname) {
+      const actualGender = resolvedGender(gender);
+      const firstPool = actualGender === "female" ? WORDS.femaleA : WORDS.maleA;
+      const secondPool = actualGender === "female" ? WORDS.femaleB : WORDS.maleB;
+      const actualSubtype = subtype === "any" ? pick(["single", "double", "combine"]) : subtype;
+      const surname = cleanKeyword(specifiedSurname).slice(0, 4) || pick(actualSubtype === "compound" ? WORDS.compoundSurnames : WORDS.surnames);
+      const lead = actualSubtype === "combine" ? pick(WORDS.virtualChars) : pick(firstPool);
+      const tail = pick(secondPool);
+
+      if (!keyword) {
+        if (actualSubtype === "single") return surname + tail;
+        return surname + lead + tail;
+      }
+
+      const mode = placement === "auto" ? pick(["middle", "middle", "end", "front"]) : placement;
+      if (mode === "front") return keyword + (actualSubtype === "single" ? tail : lead + tail);
+      if (mode === "end") return surname + lead + keyword;
+      return surname + keyword + tail;
+    }
+
+    function rootFor(style) {
+      if (style === "mixed") return pick(POOLS[pick(Object.keys(POOLS))]);
+      return pick(POOLS[style]);
+    }
+
+    function cleanKeyword(value) {
+      return value.replace(/[\s\p{P}\p{S}]/gu, "").slice(0, 6);
+    }
+
+    function joinKeyword(category, keyword, placement, before, middle, after) {
+      before = compact(before);
+      middle = compact(middle);
+      after = compact(after);
+      if (!keyword) return compact(before + middle + after);
+      const mode = placement === "auto" ? pick(["front", "middle", "middle", "end"]) : placement;
+      if (mode === "front") return keyword + compact((middle || pick(WORDS.essences)) + after);
+      if (mode === "end") return compact(before + middle) + keyword;
+      while (after.startsWith(keyword)) after = after.slice(keyword.length);
+      if (!after || after.endsWith(keyword)) {
+        if (after.endsWith(keyword)) after = after.slice(0, -keyword.length);
+        after += pick(MIDDLE_GUARDS[category] || ["名"]);
+      }
+      return before + keyword + after;
+    }
+
+    function keywordPositionIsValid(name, keyword, placement) {
+      if (!keyword) return true;
+      if (placement === "front") return name.startsWith(keyword);
+      if (placement === "middle") return name.includes(keyword) && !name.startsWith(keyword) && !name.endsWith(keyword);
+      if (placement === "end") return name.endsWith(keyword);
+      return name.includes(keyword);
+    }
+
+    function compact(name) {
+      const doubled = ["玄玄", "天天", "地地", "灵灵", "神神", "真真", "清清", "云云", "月月", "星星", "风风", "雷雷", "山山", "水水", "剑剑"];
+      let value = name;
+      doubled.forEach(pair => { value = value.replaceAll(pair, pair[0]); });
+      return value;
+    }
+
+    function buildName(category, keyword, style, placement, subtype, gender, surname) {
+      const root = rootFor(style);
+      const root2 = chance(34) ? pick(WORDS.essences) : "";
+      const action = pick(WORDS.actions);
+      const measure = pick(WORDS.measures);
+      const quality = pick(WORDS.qualities);
+      let name = "";
+
+      switch (category) {
+        case "person": {
+          name = buildPerson(keyword, placement, subtype, gender, surname);
+          break;
+        }
+        case "title":
+          name = joinKeyword(category, keyword, placement, root, chance(28) ? pick(WORDS.essences) : "", pick(endingsFor(category, subtype, gender)));
+          break;
+        case "sect":
+          name = joinKeyword(category, keyword, placement, root, chance(46) ? root2 : "", pick(endingsFor(category, subtype, gender)));
+          break;
+        case "skill":
+          name = joinKeyword(category, keyword, placement, chance(42) ? measure : root, chance(64) ? action + pick(WORDS.essences) : root2, pick(endingsFor(category, subtype, gender)));
+          break;
+        case "book":
+          name = joinKeyword(category, keyword, placement, chance(46) ? root : measure, chance(52) ? pick(WORDS.essences) : root2, pick(endingsFor(category, subtype, gender)));
+          break;
+        case "secret":
+          name = joinKeyword(category, keyword, placement, chance(45) ? root : quality, chance(72) ? action : pick(WORDS.essences), pick(endingsFor(category, subtype, gender)));
+          break;
+        case "artifact":
+          name = joinKeyword(category, keyword, placement, root, chance(58) ? pick(WORDS.essences) : "", pick(endingsFor(category, subtype, gender)));
+          break;
+        case "formation":
+          name = joinKeyword(category, keyword, placement, chance(45) ? measure : root, chance(60) ? pick(WORDS.essences) : "", pick(endingsFor(category, subtype, gender)));
+          break;
+        case "pill":
+          name = joinKeyword(category, keyword, placement, chance(52) ? root : quality, chance(58) ? pick(WORDS.flora) : pick(WORDS.essences), pick(endingsFor(category, subtype, gender)));
+          break;
+        case "material":
+          name = joinKeyword(category, keyword, placement, root, chance(55) ? quality : "", pick(endingsFor(category, subtype, gender)));
+          break;
+        case "creature":
+          name = joinKeyword(category, keyword, placement, chance(45) ? root : quality, chance(46) ? pick(WORDS.essences) : "", pick(endingsFor(category, subtype, gender)));
+          break;
+        case "place":
+          name = joinKeyword(category, keyword, placement, chance(35) ? pick(WORDS.terrain) : root, chance(30) ? pick(WORDS.essences) : "", pick(endingsFor(category, subtype, gender)));
+          break;
+        case "zone":
+          name = joinKeyword(category, keyword, placement, chance(35) ? pick(WORDS.terrain) : root, chance(24) ? pick(WORDS.essences) : "", pick(endingsFor(category, subtype, gender)));
+          break;
+        case "realm":
+          name = joinKeyword(category, keyword, placement, chance(45) ? root : measure, chance(35) ? pick(WORDS.essences) : "", pick(endingsFor(category, subtype, gender)));
+          break;
+        case "country":
+          name = joinKeyword(category, keyword, placement, chance(40) ? pick(WORDS.terrain) : root, "", pick(endingsFor(category, subtype, gender)));
+          break;
+        case "organization":
+          name = joinKeyword(category, keyword, placement, root, chance(44) ? action : "", pick(endingsFor(category, subtype, gender)));
+          break;
+        case "physique":
+          name = joinKeyword(category, keyword, placement, chance(48) ? measure : root, chance(56) ? pick(WORDS.essences) : "", pick(endingsFor(category, subtype, gender)));
+          break;
+      }
+      return keyword ? name : compact(name);
+    }
+
+    function generate() {
+      const category = $("#category").value;
+      const subtype = $("#subtype").value;
+      const style = $("#style").value;
+      const placement = $("#placement").value;
+      const gender = $("#gender").value;
+      const surname = cleanKeyword($("#surname").value).slice(0, 4);
+      const keyword = cleanKeyword($("#keyword").value);
+      $("#keyword").value = keyword;
+      $("#surname").value = surname;
+
+      const unique = new Set();
+      let attempts = 0;
+      while (unique.size < 10 && attempts < 300) {
+        const candidate = buildName(category, keyword, style, placement, subtype, gender, surname);
+        if (keywordPositionIsValid(candidate, keyword, placement)) unique.add(candidate);
+        attempts += 1;
+      }
+      state.results = [...unique].slice(0, 10);
+      const genderText = ["person", "title"].includes(category) && gender !== "random" ? ` · ${gender === "male" ? "男" : "女"}` : "";
+      const keywordText = keyword ? ` · 关键词“${keyword}” · ${PLACEMENT_LABELS[placement]}` : "";
+      $("#resultsMeta").textContent = `${LABELS[category]} · ${subtypeLabel(category, subtype)} · ${STYLE_LABELS[style]}${genderText} · ${state.results.length} 个结果${keywordText}`;
+      renderResults();
+    }
+
+    function renderResults() {
+      const list = $("#results");
+      list.textContent = "";
+      state.results.forEach((name, index) => {
+        const item = document.createElement("li");
+        item.className = "result";
+
+        const num = document.createElement("span");
+        num.className = "num";
+        num.textContent = String(index + 1).padStart(2, "0");
+
+        const text = document.createElement("span");
+        text.className = "name";
+        text.textContent = name;
+
+        const favorite = document.createElement("button");
+        favorite.type = "button";
+        favorite.className = `icon-btn${state.favorites.includes(name) ? " saved" : ""}`;
+        favorite.textContent = state.favorites.includes(name) ? "★" : "☆";
+        favorite.setAttribute("aria-label", state.favorites.includes(name) ? `取消收藏 ${name}` : `收藏 ${name}`);
+        favorite.addEventListener("click", () => toggleFavorite(name));
+
+        const copy = document.createElement("button");
+        copy.type = "button";
+        copy.className = "icon-btn";
+        copy.textContent = "⧉";
+        copy.setAttribute("aria-label", `复制 ${name}`);
+        copy.addEventListener("click", () => copyText(name, `已复制：${name}`));
+
+        item.append(num, text, favorite, copy);
+        list.appendChild(item);
+      });
+    }
+
+    function loadFavorites() {
+      try { return JSON.parse(localStorage.getItem("xuanjian-favorites") || "[]"); }
+      catch { return []; }
+    }
+
+    function saveFavorites() {
+      try { localStorage.setItem("xuanjian-favorites", JSON.stringify(state.favorites)); }
+      catch { /* file-mode private browsing may block storage */ }
+    }
+
+    function toggleFavorite(name) {
+      const index = state.favorites.indexOf(name);
+      if (index >= 0) state.favorites.splice(index, 1);
+      else state.favorites.unshift(name);
+      state.favorites = state.favorites.slice(0, 80);
+      saveFavorites();
+      renderResults();
+      renderFavorites();
+    }
+
+    function renderFavorites() {
+      const holder = $("#favoriteList");
+      holder.textContent = "";
+      if (!state.favorites.length) {
+        const empty = document.createElement("span");
+        empty.className = "empty";
+        empty.textContent = "还没有收藏；看到喜欢的名称时点一下 ☆。";
+        holder.appendChild(empty);
+        return;
+      }
+      state.favorites.forEach((name) => {
+        const chip = document.createElement("button");
+        chip.type = "button";
+        chip.className = "fav-chip";
+        chip.textContent = name;
+        chip.title = "点击复制";
+        chip.addEventListener("click", () => copyText(name, `已复制：${name}`));
+        holder.appendChild(chip);
+      });
+    }
+
+    async function copyText(text, message) {
+      try {
+        if (navigator.clipboard && window.isSecureContext) await navigator.clipboard.writeText(text);
+        else {
+          const area = document.createElement("textarea");
+          area.value = text;
+          area.setAttribute("readonly", "");
+          area.style.position = "fixed";
+          area.style.opacity = "0";
+          document.body.appendChild(area);
+          area.select();
+          document.execCommand("copy");
+          area.remove();
+        }
+        showToast(message);
+      } catch { showToast("复制失败，请手动选择文字"); }
+    }
+
+    let toastTimer;
+    function showToast(message) {
+      const toast = $("#toast");
+      toast.textContent = message;
+      toast.classList.add("show");
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => toast.classList.remove("show"), 1600);
+    }
+
+    $("#generatorForm").addEventListener("submit", (event) => { event.preventDefault(); generate(); });
+    $("#category").addEventListener("change", () => { updateCategoryControls(); generate(); });
+    $("#copyAll").addEventListener("click", () => copyText(state.results.join("\n"), "十个结果已全部复制"));
+    $("#clearFavorites").addEventListener("click", () => {
+      state.favorites = [];
+      saveFavorites();
+      renderFavorites();
+      renderResults();
+      showToast("收藏已清空");
+    });
+
+    updateCategoryControls();
+    renderFavorites();
+    generate();
+  </script>
+</body>
+</html>

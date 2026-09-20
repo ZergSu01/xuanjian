@@ -1,0 +1,4 @@
+* text=auto
+*.html text eol=lf
+*.md text eol=lf
+*.cjs text eol=lf

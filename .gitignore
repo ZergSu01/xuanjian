@@ -1,0 +1,20 @@
+# macOS
+.DS_Store
+._*
+__MACOSX/
+# Local credentials
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+# Temporary and development files
+node_modules/
+coverage/
+*.log
+*.tmp
+*.bak
+*.swp
+*.zip
+.vscode/
+.idea/
