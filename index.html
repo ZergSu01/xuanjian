@@ -467,15 +467,15 @@
 
         <div class="field-row length-options">
           <div class="field">
-            <label for="minLength">最少字数（可不填）</label>
-            <input id="minLength" type="number" min="1" max="20" step="1" inputmode="numeric" placeholder="不限" aria-describedby="lengthHint">
+            <label for="minLength">最少字数</label>
+            <input id="minLength" type="number" min="2" max="8" step="1" value="2" inputmode="numeric" placeholder="2" aria-describedby="lengthHint">
           </div>
           <div class="field">
-            <label for="maxLength">最多字数（可不填）</label>
-            <input id="maxLength" type="number" min="1" max="20" step="1" inputmode="numeric" placeholder="不限" aria-describedby="lengthHint">
+            <label for="maxLength">最多字数</label>
+            <input id="maxLength" type="number" min="2" max="8" step="1" value="6" inputmode="numeric" placeholder="6" aria-describedby="lengthHint">
           </div>
         </div>
-        <p class="hint" id="lengthHint">按完整名称计数，包含姓氏、关键词和后缀。两项相同可限定固定字数，留空不限制；不会截断或补字凑长度。</p>
+        <p class="hint" id="lengthHint">默认 2–6 字，可在 2–8 字内调整；长功法、阵法名可放宽至 7–8 字。按完整名称计数，包含姓氏、关键词和后缀。两项相同可固定字数，留空采用默认值；不会截断或补字凑长度。</p>
 
         <button class="primary" id="generateButton" type="submit">生成十个</button>
         <p class="micro">锁定喜欢的候选，再换一批；也可以只换一条。更改命名设置会解除锁定。</p>
@@ -662,13 +662,57 @@
       yaoyi: ['青绯白羽灵月玄赤雪九','岐翎羽璃绡影棠珀歌灵']
     };
     const THEMES = {
-      skill: {sword:['分光','照影','听潮','流云','问心','回风'], blade:['断流','劈岳','横江','破阵'], spear:['贯日','游龙','破军','点星'], boxing:['撼山','崩石','擒龙','开碑'], movement:['掠影','踏云','逐月','无痕'], internal:['养元','归息','凝神','周天'], body:['洗髓','易筋','炼骨','伏龙'], beast:['驭灵','唤禽','契兽','通心'], soul:['存思','澄心','守神','照魂'], thunder:['驭霆','震岳','引电','鸣空'], fire:['焚心','燎原','炼阳','流焰'], ice:['凝霜','封江','寒魄','飞雪'], poison:['蚀脉','化骨','锁魂','潜蛊']},
+      skill: {sword:['分光','照影','听潮','流云','问心','回风'], blade:['断流','劈岳','横江','破阵'], spear:['贯日','游龙','破军','点星'], boxing:['撼山','崩石','擒龙','开碑'], movement:['掠影','踏云','逐月','无痕'], internal:['养元','归息','凝神','周天'], body:['洗髓','易筋','炼骨','伏龙'], beast:['驭灵','唤禽','契兽','通心'], soul:['存思','澄心','守神','照魂'], thunder:['驭霆','震岳','引电','鸣空','破邪','荡魔','炼体','镇煞','破空','炼罡','震魂','驱妖'], fire:['焚心','燎原','炼阳','流焰','熔金','煅骨','炼气','化煞','焚天','灼魂','融石','焚尘'], ice:['凝霜','封江','寒魄','飞雪','封脉','凝魄','锁岳','定魂','凝气','护体','化晶','封灵'], poison:['蚀脉','化骨','锁魂','潜蛊']},
       pill: {healing:['白芷','玉芝','青莲','雪参'],restore:['黄精','紫芝','松露','灵泉'],breakthrough:['紫金','玉髓','龙芝','星露'],body:['赤铜','龙骨','石髓','金芝'],soul:['月华','幽兰','静莲','寒玉'],poison:['蛇涎','赤蝎','腐萤','幽蛊'],lifespan:['长青','玉桃','灵芝','春露']},
       material: {metal:['玄纹','流金','赤炼','星沉'],jade:['凝光','冰纹','烟霞','月白'],herb:['九叶','并蒂','含露','凝霜'],wood:['千节','虬枝','盘根','青纹'],liquid:['凝露','寒泉','月华','清灵'],flame:['青莲','赤焰','寒魄','幽蓝'],bone:['苍龙','白麟','青鸾','玄蛟']},
       formation: {attack:['诛邪','破军','裂空','荡魔'],defense:['磐石','金城','定岳','藏锋'],trap:['缚龙','困仙','迷途','锁天'],illusion:['迷心','梦蝶','浮光','镜花'],gather:['归元','汇流','纳气','承露'],teleport:['咫尺','缩地','流光','渡虚'],seal:['镇岳','伏龙','封天','禁灵']},
       book: {alchemybook:['辨药','丹方','百草','养元'],craftbook:['铸剑','百炼','金石','琢玉'],historybook:['旧事','拾遗','列国','游记'],mapbook:['寻山','观海','九州','行舟']},
       secret: {escape:['无影','流光','穿云','化虹'],curse:['缚魂','摄心','镇魄','禁言'],seal:['伏魔','定山','覆海','镇灵'],eye:['洞微','破妄','观星','照夜'],forbidden:['燃血','祭魂','逆命','断生'],divine:['法天','移山','覆海','御风'],change:['化羽','隐形','幻身','移影'],summon:['唤灵','请神','引魂','召雨']}
     };
+
+    // Complete words and phrases for short/long forms; never slice a word to fit.
+    const SHORT_ROOTS = {
+      archaic: '玄苍古朴元青赤白', immortal: '云霜雪玉灵月星清', jianghu: '墨铁寒孤青赤风影',
+      daoist: '玄清真静灵元朴虚', buddhist: '禅莲净觉慧慈明梵', demonic: '冥幽血魔煞烬暗魇', yaoyi: '妖狐魅幻幽绯灵碧'
+    };
+    const LINEAGE_ROOTS = {
+      archaic:['昆仑山','苍梧山','九嶷山','不周山'], immortal:['玉清宫','青云山','紫霄宫','碧落天'],
+      jianghu:['青城山','断刀门','听雨楼','藏剑山'], daoist:['太玄门','上清宫','玄都观','紫阳宫'],
+      buddhist:['须弥山','金刚寺','菩提院','灵山寺'], demonic:['九幽门','血魔宗','黄泉道','幽冥殿'],
+      yaoyi:['青丘山','万妖谷','灵狐洞','碧鳞宫']
+    };
+    const LONG_THEMES = {
+      skill: {
+        sword:['分光化影','回风照月','听潮观澜','流云落霞'], blade:['横江断流','劈山断岳','破阵摧锋','逐浪翻江'],
+        spear:['游龙贯日','点星追月','破军荡寇','穿云裂石'], boxing:['撼山裂石','擒龙伏虎','开碑碎玉','崩山断岳'],
+        movement:['踏云逐月','掠影无痕','回风拂柳','凌波渡水'], internal:['凝神归元','周天导气','抱元守一','吐故纳新'],
+        body:['易筋洗髓','凝血锻骨','伏龙炼血','金刚不坏'], beast:['百兽同心','万灵归契','听禽辨语','感灵结契'],
+        soul:['澄心照魂','存思守神','抱元定魄','明心见性'], thunder:['引电震岳','风雷激荡','奔霆破空','鸣雷荡魔'],
+        fire:['流焰焚空','赤阳熔金','飞焰燎原','炼阳化煞'], ice:['飞雪凝霜','寒流封江','凝冰锁岳','玄霜封脉'],
+        poison:['蚀脉化骨','潜蛊锁魂','腐血侵髓','无形蚀心']
+      },
+      formation: {
+        attack:['破军荡魔','诛邪裂空','七星诛邪','流光斩影'], defense:['金城固岳','藏锋守元','磐石护岳','灵光护壁'],
+        trap:['缚龙困仙','迷途锁界','八门锁天','地网缚灵'], illusion:['镜花水月','浮光迷心','千重幻影','梦蝶迷魂'],
+        gather:['百川归元','五气朝元','万流汇灵','承露纳气'], teleport:['咫尺天涯','缩地渡虚','流光移影','星轨渡空'],
+        seal:['伏龙镇岳','封天禁灵','四象镇魔','八门封界']
+      },
+      secret: {
+        escape:['穿云化虹','流光遁影','隐踪匿迹','逐风渡虚'], curse:['摄心镇魄','缚魂禁言','锁念封识','惑心乱神'],
+        seal:['移山覆海','伏魔镇灵','翻江倒海','定岳封川'], eye:['洞微破妄','观星照夜','洞幽察微','烛照幽冥'],
+        forbidden:['燃血祭魂','逆命断生','焚魄换形','舍身夺元'], divine:['移山覆海','御风驾云','摘星揽月','呼风唤雨'],
+        change:['隐形幻身','化羽移影','千变无相','易骨换形'], summon:['引魂唤灵','百鬼夜行','万灵来朝','招云唤雨']
+      }
+    };
+    const STEM_ENDINGS = Object.fromEntries(['skill', 'formation', 'secret'].map(category => [category,
+      [...new Set([...Object.values(SUBTYPE_ENDINGS[category]).flat(), ...endingsFor(category, 'any')])]
+        .sort((a, b) => [...b].length - [...a].length)
+    ]));
+
+    function diversityKey(name, category) {
+      const ending = STEM_ENDINGS[category]?.find(word => name.endsWith(word) && name !== word);
+      return ending ? name.slice(0, -ending.length) : name;
+    }
 
     function glue(left, right) {
       if (!left || !right) return left + right;
@@ -764,9 +808,9 @@
     }
 
     const KEYWORD_HINTS = [
-      {label: '冰雪', match: /冰|雪|霜|寒/, skill: 'ice', roots: ['寒玉','凝霜','素雪','冰魄','凛冬','霜华','冷月','玄冰','雪原','北风','银霜','寒泉','冬夜','流霜','清寒','冰河'], bridges: ['魄','霜','雪','玉','晶','寒','华','心']},
-      {label: '火焰', match: /火|炎|焰|焚/, skill: 'fire', roots: ['赤阳','流火','丹霞','炎海','熔金','焚天','烬明','赤炼','朱明','烈阳','火羽','燎原','灼华','金乌','赤曜','阳焰'], bridges: ['阳','焰','烬','炎','赤','光','心','华']},
-      {label: '雷电', match: /雷|霆|电/, skill: 'thunder', roots: ['震岳','惊雷','紫电','青霆','雷泽','霆光','鸣空','奔雷','霹雳','天威','震空','电芒','风雷','雷池','轰天','苍雷'], bridges: ['震','霆','电','鸣','光','霄','威','罡']},
+      {label: '冰雪', match: /冰|雪|霜|寒/, skill: 'ice', roots: ['寒玉','凝霜','素雪','冰魄','凛冬','霜华','冷月','玄冰','雪原','北风','银霜','寒泉','冬夜','流霜','清寒','冰河'], bridges: ['魄','玉','晶','华','心','素','凝','玄']},
+      {label: '火焰', match: /火|炎|焰|焚/, skill: 'fire', roots: ['赤阳','流火','丹霞','炎海','熔金','焚天','烬明','赤炼','朱明','烈阳','火羽','燎原','灼华','金乌','赤曜','阳焰'], bridges: ['罡','阳','心','华','魄','光','元','轮']},
+      {label: '雷电', match: /雷|霆|电/, skill: 'thunder', roots: ['震岳','惊雷','紫电','青霆','雷泽','霆光','鸣空','奔雷','霹雳','天威','震空','电芒','风雷','雷池','轰天','苍雷'], bridges: ['罡','霄','威','震','光','元','空','鸣']},
       {label: '水泽', match: /水|海|潮|浪|江|湖/, roots: ['沧海','清波','碧水','听潮','寒江','澄渊','归流','沧浪','镜湖','烟波','潮生','流泉','清溪','秋水','江月','龙津'], bridges: ['澜','波','潮','澄','流','泉','渊','月']},
       {label: '佛门', match: /佛|禅|菩提|般若/, style: 'buddhist', bridges: ['莲','觉','净','明','心','空','慈','真']}
     ];
@@ -774,6 +818,12 @@
     function keywordHint(keyword) {
       const matches = KEYWORD_HINTS.filter(hint => hint.match.test(keyword));
       return matches.length === 1 ? matches[0] : null;
+    }
+
+    function namingEndings(category, subtype, gender, keyword) {
+      // The keyword already carries the selected element; do not say it again in the suffix.
+      if (category === 'skill' && keywordHint(keyword)?.skill === subtype) return ['诀', '经', '法', '真解', '心法'];
+      return endingsFor(category, subtype, gender);
     }
 
     function rootFor(style, keyword = '') {
@@ -797,7 +847,8 @@
       if (!keyword) return glue(glue(before, middle), after);
       const mode = placement === "auto" ? pick(["front", "middle", "middle", "end"]) : placement;
       if (mode === "front") {
-        const bridge = middle || pick(keywordHint(keyword)?.bridges || WORDS.essences);
+        const hint = keywordHint(keyword);
+        const bridge = middle || pick((category === 'skill' && THEMES.skill[hint?.skill]) || hint?.bridges || WORDS.essences);
         return glue(keyword, chance(25) ? after : glue(bridge, after));
       }
       if (mode === "end") return glue(glue(before, middle), keyword);
@@ -841,57 +892,57 @@
           break;
         }
         case "title":
-          name = joinKeyword(category, keyword, placement, root, chance(28) ? pick(WORDS.essences) : "", pick(endingsFor(category, subtype, gender)));
+          name = joinKeyword(category, keyword, placement, root, chance(28) ? pick(WORDS.essences) : "", pick(namingEndings(category, subtype, gender, keyword)));
           break;
         case "sect":
-          name = joinKeyword(category, keyword, placement, root, chance(46) ? root2 : "", pick(endingsFor(category, subtype, gender)));
+          name = joinKeyword(category, keyword, placement, root, chance(46) ? root2 : "", pick(namingEndings(category, subtype, gender, keyword)));
           break;
         case "skill":
-          name = joinKeyword(category, keyword, placement, chance(42) ? measure : root, chance(64) ? action + pick(WORDS.essences) : root2, pick(endingsFor(category, subtype, gender)));
+          name = joinKeyword(category, keyword, placement, chance(42) ? measure : root, chance(64) ? action + pick(WORDS.essences) : root2, pick(namingEndings(category, subtype, gender, keyword)));
           break;
         case "book":
-          name = joinKeyword(category, keyword, placement, chance(46) ? root : measure, chance(52) ? pick(WORDS.essences) : root2, pick(endingsFor(category, subtype, gender)));
+          name = joinKeyword(category, keyword, placement, chance(46) ? root : measure, chance(52) ? pick(WORDS.essences) : root2, pick(namingEndings(category, subtype, gender, keyword)));
           break;
         case "secret":
-          name = joinKeyword(category, keyword, placement, chance(45) ? root : quality, chance(72) ? action : pick(WORDS.essences), pick(endingsFor(category, subtype, gender)));
+          name = joinKeyword(category, keyword, placement, chance(45) ? root : quality, chance(72) ? action : pick(WORDS.essences), pick(namingEndings(category, subtype, gender, keyword)));
           break;
         case "artifact":
-          name = joinKeyword(category, keyword, placement, root, chance(58) ? pick(WORDS.essences) : "", pick(endingsFor(category, subtype, gender)));
+          name = joinKeyword(category, keyword, placement, root, chance(58) ? pick(WORDS.essences) : "", pick(namingEndings(category, subtype, gender, keyword)));
           break;
         case "formation":
-          name = joinKeyword(category, keyword, placement, chance(45) ? measure : root, chance(60) ? pick(WORDS.essences) : "", pick(endingsFor(category, subtype, gender)));
+          name = joinKeyword(category, keyword, placement, chance(45) ? measure : root, chance(60) ? pick(WORDS.essences) : "", pick(namingEndings(category, subtype, gender, keyword)));
           break;
         case "pill":
-          name = joinKeyword(category, keyword, placement, chance(52) ? root : quality, chance(58) ? pick(WORDS.flora) : pick(WORDS.essences), pick(endingsFor(category, subtype, gender)));
+          name = joinKeyword(category, keyword, placement, chance(52) ? root : quality, chance(58) ? pick(WORDS.flora) : pick(WORDS.essences), pick(namingEndings(category, subtype, gender, keyword)));
           break;
         case "material":
-          name = joinKeyword(category, keyword, placement, root, chance(55) ? quality : "", pick(endingsFor(category, subtype, gender)));
+          name = joinKeyword(category, keyword, placement, root, chance(55) ? quality : "", pick(namingEndings(category, subtype, gender, keyword)));
           break;
         case "creature":
-          name = joinKeyword(category, keyword, placement, chance(45) ? root : quality, chance(46) ? pick(WORDS.essences) : "", pick(endingsFor(category, subtype, gender)));
+          name = joinKeyword(category, keyword, placement, chance(45) ? root : quality, chance(46) ? pick(WORDS.essences) : "", pick(namingEndings(category, subtype, gender, keyword)));
           break;
         case "place":
-          name = joinKeyword(category, keyword, placement, chance(35) ? pick(WORDS.terrain) : root, chance(30) ? pick(WORDS.essences) : "", pick(endingsFor(category, subtype, gender)));
+          name = joinKeyword(category, keyword, placement, chance(35) ? pick(WORDS.terrain) : root, chance(30) ? pick(WORDS.essences) : "", pick(namingEndings(category, subtype, gender, keyword)));
           break;
         case "zone":
-          name = joinKeyword(category, keyword, placement, chance(35) ? pick(WORDS.terrain) : root, chance(24) ? pick(WORDS.essences) : "", pick(endingsFor(category, subtype, gender)));
+          name = joinKeyword(category, keyword, placement, chance(35) ? pick(WORDS.terrain) : root, chance(24) ? pick(WORDS.essences) : "", pick(namingEndings(category, subtype, gender, keyword)));
           break;
         case "realm":
-          name = joinKeyword(category, keyword, placement, chance(45) ? root : measure, chance(35) ? pick(WORDS.essences) : "", pick(endingsFor(category, subtype, gender)));
+          name = joinKeyword(category, keyword, placement, chance(45) ? root : measure, chance(35) ? pick(WORDS.essences) : "", pick(namingEndings(category, subtype, gender, keyword)));
           break;
         case "country":
-          name = joinKeyword(category, keyword, placement, chance(40) ? pick(WORDS.terrain) : root, "", pick(endingsFor(category, subtype, gender)));
+          name = joinKeyword(category, keyword, placement, chance(40) ? pick(WORDS.terrain) : root, "", pick(namingEndings(category, subtype, gender, keyword)));
           break;
         case "organization":
-          name = joinKeyword(category, keyword, placement, root, chance(44) ? action : "", pick(endingsFor(category, subtype, gender)));
+          name = joinKeyword(category, keyword, placement, root, chance(44) ? action : "", pick(namingEndings(category, subtype, gender, keyword)));
           break;
         case "physique":
-          name = joinKeyword(category, keyword, placement, chance(48) ? measure : root, chance(56) ? pick(WORDS.essences) : "", pick(endingsFor(category, subtype, gender)));
+          name = joinKeyword(category, keyword, placement, chance(48) ? measure : root, chance(56) ? pick(WORDS.essences) : "", pick(namingEndings(category, subtype, gender, keyword)));
           break;
       }
       // Selected subtypes use compatible phrases instead of unrelated generic fragments.
       if (category !== "person" && themed) {
-        const ending = pick(endingsFor(category, subtype, gender));
+        const ending = pick(namingEndings(category, subtype, gender, keyword));
         const stem = pick(themed);
         name = joinKeyword(category, keyword, placement, root, chance(65) ? stem : "", ending);
       }
@@ -905,14 +956,14 @@
       settings.surname = [...cleanKeyword(settings.surname)].slice(0, 4).join('');
       $('#keyword').value = settings.keyword;
       $('#surname').value = settings.surname;
-      settings.minLength = settings.minLength.trim() === '' ? null : Number(settings.minLength);
-      settings.maxLength = settings.maxLength.trim() === '' ? null : Number(settings.maxLength);
+      settings.minLength = settings.minLength.trim() === '' ? 2 : Number(settings.minLength);
+      settings.maxLength = settings.maxLength.trim() === '' ? 6 : Number(settings.maxLength);
       return settings;
     }
 
     function settingsError(s) {
       for (const value of [s.minLength, s.maxLength]) {
-        if (value !== null && (!Number.isInteger(value) || value < 1 || value > 20)) return '字数请填写 1–20 的整数，或留空表示不限。';
+        if (!Number.isInteger(value) || value < 2 || value > 8) return '字数请填写 2–8 的整数；留空时最少为 2 字、最多为 6 字。';
       }
       if (s.minLength !== null && s.maxLength !== null && s.minLength > s.maxLength) return '最少字数不能大于最多字数。';
       const keywordLength = [...s.keyword].length;
@@ -926,7 +977,33 @@
       const hint = keywordHint(s.keyword);
       const inferred = s.category === 'skill' && s.subtype === 'any' ? hint?.skill : null;
       const subtype = inferred || (s.subtype === 'any' && s.category !== 'title' ? pick(subtypes) : s.subtype);
+      if (s.category !== 'person' && (s.maxLength <= 3 || s.minLength >= 6 || chance(30))) {
+        const fitted = lengthAwareName(s, subtype);
+        if (fitted) return fitted;
+      }
       return buildName(s.category, s.keyword, s.style, s.placement, subtype, s.gender, s.surname);
+    }
+
+    function lengthAwareName(s, subtype) {
+      const hint = keywordHint(s.keyword);
+      const style = s.style === 'mixed' ? hint?.style || pick(Object.keys(SHORT_ROOTS)) : s.style;
+      const short = pick(s.style === 'mixed' && hint?.bridges ? hint.bridges : [...SHORT_ROOTS[style]]);
+      const root = rootFor(s.style, s.keyword);
+      const theme = THEMES[s.category]?.[subtype];
+      const longTheme = LONG_THEMES[s.category]?.[subtype];
+      const stem = theme ? pick(theme) : '';
+      const longStem = longTheme ? pick(longTheme) : '';
+      const ending = pick(namingEndings(s.category, subtype, s.gender, s.keyword));
+      const parts = [[root, '']];
+      if (s.maxLength <= 3 || (s.keyword && [...s.keyword].length + [...ending].length + 2 > s.maxLength)) parts.push([short, '']);
+      if (stem) parts.push([root, stem]);
+      if (longStem) {
+        parts.push([root, longStem], [longStem, ''], [pick(LINEAGE_ROOTS[style]), stem]);
+        // A complete three-character prefix gives a natural 3+2+2/3 rhythm.
+        if (s.category === 'skill' && ['internal','body','soul'].includes(subtype)) parts.push([pick(['小周天','大周天']), stem]);
+      }
+      const candidates = parts.map(([before, middle]) => joinKeyword(s.category, s.keyword, s.placement, before, middle, ending));
+      return pick(candidates.filter(name => acceptable(name, s))) || '';
     }
 
     function acceptable(name, s) {
@@ -940,7 +1017,20 @@
       if ((s.minLength !== null && length < s.minLength) || (s.maxLength !== null && length > s.maxLength)) return false;
       // Do not reject repetition the writer deliberately included in a keyword or surname.
       const remainder = name.replace(s.keyword || '\u0000', '').replace(s.surname || '\u0000', '');
-      return !/(.)\1/u.test(remainder);
+      if (/(.)\1/u.test(remainder) || /(..).*\1/u.test(remainder)) return false;
+      if (s.category !== 'person') {
+        if (new Set([...remainder]).size !== [...remainder].length) return false;
+        const cold = /冰|雪|霜|寒/, hot = /火|炎|焰|焚/;
+        // Honor deliberately combined keywords and explicit opposing subtypes.
+        const intentional = (cold.test(s.keyword) && hot.test(s.keyword)) ||
+          (s.category === 'skill' && ((s.subtype === 'fire' && cold.test(s.keyword)) || (s.subtype === 'ice' && hot.test(s.keyword))));
+        if (!intentional && cold.test(name) && hot.test(name)) return false;
+        for (const motif of [/[冰雪霜寒]/gu, /[火炎焰焚]/gu, /[雷霆电]/gu]) {
+          const specified = (s.keyword.match(motif) || []).length;
+          if ((name.match(motif) || []).length > Math.max(2, specified)) return false;
+        }
+      }
+      return true;
     }
 
     function generate(replaceIndex = null) {
@@ -963,19 +1053,20 @@
         return name && (state.locked.has(name) || (replaceIndex !== null && i !== replaceIndex)) ? name : null;
       });
       const used = new Set(result.filter(Boolean));
+      const usedStems = new Set([...used].map(name => diversityKey(name, s.category)));
       const recent = new Set([...state.recent, ...previous]);
       let relaxed = false;
       for (let i = 0; i < result.length; i++) {
         if (result[i]) continue;
-        let fallback = !changed && previous[i] && !used.has(previous[i]) && acceptable(previous[i], s) ? previous[i] : null;
+        let fallback = !changed && previous[i] && !used.has(previous[i]) && !usedStems.has(diversityKey(previous[i], s.category)) && acceptable(previous[i], s) ? previous[i] : null;
         for (let attempt = 0; attempt < 500; attempt++) {
           const name = candidateFor(s);
-          if (used.has(name) || !acceptable(name, s)) continue;
+          if (used.has(name) || usedStems.has(diversityKey(name, s.category)) || !acceptable(name, s)) continue;
           if (!recent.has(name)) { result[i] = name; break; }
           fallback = name;
         }
         if (!result[i] && fallback) { result[i] = fallback; relaxed = true; }
-        if (result[i]) used.add(result[i]);
+        if (result[i]) { used.add(result[i]); usedStems.add(diversityKey(result[i], s.category)); }
       }
       state.results = result.filter(Boolean);
       state.recent = [...new Set([...state.recent, ...previous, ...state.results])].slice(-100);

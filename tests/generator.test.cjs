@@ -19,6 +19,11 @@ function element() {
 const nodes = new Map();
 const get = id => { if (!nodes.has(id)) nodes.set(id, element()); return nodes.get(id); };
 Object.entries({category:'skill', style:'mixed', placement:'auto', gender:'random'}).forEach(([k,v])=>get('#'+k).value=v);
+for (const id of ['minLength','maxLength']) {
+  const input=html.match(new RegExp(`<input id="${id}"[^>]*>`))[0];
+  assert.match(input,/min="2"/); assert.match(input,/max="8"/);
+  get('#'+id).value=input.match(/value="(\d+)"/)[1];
+}
 const storage = new Map();
 const context = vm.createContext({
   document: {querySelector:get, createElement:element, body:element()},
@@ -26,18 +31,22 @@ const context = vm.createContext({
   localStorage: {getItem:k=>storage.get(k)||null, setItem:(k,v)=>storage.set(k,v)},
   navigator: {}, setTimeout: () => 0, clearTimeout(){}, console
 });
-vm.runInContext(scripts[0][1] + '\n globalThis.api = {SUBTYPE_OPTIONS, STYLE_LABELS, state, generate, updateCategoryControls, toggleFavorite, toggleLock, importFavorites, normalizeFavorites, exportData, changeFavorites, undoFavorites, saveEditedFavorite, saveFavorites, loadFavorites, PERSON_STYLES, buildPerson, glue, copyText, keywordHint, settingsError};', context);
+vm.runInContext(scripts[0][1] + '\n globalThis.api = {SUBTYPE_OPTIONS, STYLE_LABELS, state, generate, updateCategoryControls, toggleFavorite, toggleLock, importFavorites, normalizeFavorites, exportData, changeFavorites, undoFavorites, saveEditedFavorite, saveFavorites, loadFavorites, PERSON_STYLES, buildPerson, glue, copyText, keywordHint, settingsError, acceptable, readSettings};', context);
 const api = context.api;
+assert.equal(api.readSettings().minLength,2); assert.equal(api.readSettings().maxLength,6);
 let batches=0, names=0, subtypes=0;
 function check(category, subtype, style, placement, keyword, gender='random', surname='') {
   for (const [k,v] of Object.entries({category,subtype,style,placement,keyword,gender,surname})) get('#'+k).value=v;
   api.generate();
   const result=Array.from(api.state.results);
   const label=JSON.stringify({category,subtype,style,placement,keyword,gender,surname});
-  assert.equal(result.length,10,label);
-  assert.equal(new Set(result).size,10,label);
+  assert.ok(result.length>0 && result.length<=10,label);
+  if(!keyword) assert.equal(result.length,10,label);
+  if(result.length<10) assert.match(get('#generationNote').textContent,/本次找到/);
+  assert.equal(new Set(result).size,result.length,label);
   for(const name of result) {
     assert.equal(typeof name,'string'); assert.ok(name && !/undefined|null/.test(name),label);
+    assert.ok([...name].length>=2 && [...name].length<=6,label+name);
     if(keyword) {
       if(placement==='front') assert.ok(name.startsWith(keyword),label+name);
       else if(placement==='end') assert.ok(name.endsWith(keyword),label+name);
@@ -126,14 +135,18 @@ get('#minLength').value='6';get('#maxLength').value='3';api.generate();
 assert.deepEqual(Array.from(api.state.results),validBefore); assert.match(get('#generationNote').textContent,/最少字数不能大于最多/);
 get('#minLength').value='1.5';api.generate();assert.match(get('#generationNote').textContent,/整数/);
 get('#minLength').value='';get('#maxLength').value='2';get('#keyword').value='北冥';get('#placement').value='middle';api.generate();assert.match(get('#generationNote').textContent,/前后至少/);
-get('#placement').value='front';get('#maxLength').value='1';api.generate();assert.match(get('#generationNote').textContent,/关键词本身/);
-get('#keyword').value='';get('#minLength').value='20';get('#maxLength').value='20';api.generate();
+get('#placement').value='front';get('#keyword').value='北冥海';api.generate();assert.match(get('#generationNote').textContent,/关键词本身/);
+for(const invalid of ['1','9','20','NaN']) {
+  get('#minLength').value=invalid;api.generate();assert.match(get('#generationNote').textContent,/2–8 的整数/);
+}
+get('#keyword').value='';get('#minLength').value='8';get('#maxLength').value='8';api.generate();
 assert.equal(api.state.results.length,0);assert.equal(get('#copyAll').disabled,true);assert.match(get('#generationNote').textContent,/不会截断/);
 get('#minLength').value='';get('#maxLength').value='';
+assert.equal(api.readSettings().minLength,2); assert.equal(api.readSettings().maxLength,6);
 // Known-keyword inference is limited to unspecified choices; explicit sword type wins over fire hint.
 for(const [k,v] of Object.entries({category:'skill',subtype:'any',style:'mixed',placement:'middle',keyword:'烈火',surname:''})) get('#'+k).value=v;
 api.generate();assert.equal(api.state.results.length,10);
-assert.ok(api.state.results.every(n=>n.includes('烈火') && /(?:火法|炎诀|火经|法|经)$/.test(n)),JSON.stringify(api.state.results));
+assert.ok(api.state.results.every(n=>n.includes('烈火') && /(?:诀|经|法|真解)$/.test(n)),JSON.stringify(api.state.results));
 get('#subtype').value='sword';get('#style').value='jianghu';api.generate();
 assert.ok(api.state.results.every(n=>/剑(?:诀|法|经)$/.test(n)));
 get('#subtype').value='any';get('#style').value='mixed';get('#placement').value='front';api.generate();
@@ -145,6 +158,33 @@ api.toggleLock(api.state.results[0]);get('#minLength').value='5';get('#maxLength
 assert.equal(api.state.locked.size,0);assert.ok(api.state.results.every(n=>[...n].length===5));
 for(const [k,v] of Object.entries({category:'person',subtype:'double',style:'daoist',placement:'end',keyword:'𠮷',surname:'苏',minLength:'3',maxLength:'3'}))get('#'+k).value=v;
 api.generate();assert.equal(api.state.results.length,10);assert.ok(api.state.results.every(n=>[...n].length===3&&n.endsWith('𠮷')));
+get('#minLength').value='';get('#maxLength').value='';
+
+// Whole-name fixed lengths from 2 through 8, including deliberate lack of long person names.
+let fixedBatches=0, fixedNames=0;
+for(const category of Object.keys(api.SUBTYPE_OPTIONS)) {
+  for(let length=2;length<=8;length++) {
+    for(const [k,v] of Object.entries({category,subtype:'any',style:'mixed',placement:'auto',keyword:'',surname:'',minLength:String(length),maxLength:String(length)}))get('#'+k).value=v;
+    api.generate(); fixedBatches++; fixedNames+=api.state.results.length;
+    assert.equal(new Set(api.state.results).size,api.state.results.length);
+    for(const name of api.state.results) assert.equal([...name].length,length,name);
+    if(category==='person' && length>4) assert.equal(api.state.results.length,0);
+    if((['skill','formation','secret'].includes(category) && length>=6) || (category==='artifact' && length===2)) assert.equal(api.state.results.length,10,`${category}/${length}`);
+  }
+}
+// Complete subtype endings survive tight ranges; no generic suffix is used just to make a name fit.
+for(const length of [3,7,8]) {
+  for(const [k,v] of Object.entries({category:'skill',subtype:'sword',style:'immortal',keyword:'',minLength:String(length),maxLength:String(length)}))get('#'+k).value=v;
+  api.generate();assert.ok(api.state.results.length>0);
+  assert.ok(api.state.results.every(n=>[...n].length===length&&/剑(?:诀|法|经)$/.test(n)));
+  assert.equal(new Set(api.state.results.map(n=>n.replace(/剑(?:诀|法|经)$/,''))).size,api.state.results.length);
+}
+const qualitySettings={category:'skill',subtype:'any',keyword:'',surname:'',placement:'auto',minLength:2,maxLength:8};
+assert.equal(api.acceptable('玄冰烈火诀',qualitySettings),false);
+assert.equal(api.acceptable('玄天玄天剑诀',qualitySettings),false);
+assert.equal(api.acceptable('雷泽惊雷诀',qualitySettings),false);
+assert.equal(api.acceptable('烈火焰炎诀',{...qualitySettings,keyword:'烈火'}),false);
+assert.equal(api.acceptable('玄冰烈火诀',{...qualitySettings,keyword:'冰',subtype:'fire'}),true);
 get('#minLength').value='';get('#maxLength').value='';
 
 // Legacy migration, exact-name dedupe, export/import round trip, and atomic failures.
@@ -189,5 +229,5 @@ assert.equal(storage.get('xuanjian-favorites-v2'),corrupt); assert.equal(get('#s
   await api.copyText('test','成功'); assert.match(get('#toast').textContent,/复制失败/);
   context.document.execCommand=()=>true;
   await api.copyText('test','成功'); assert.equal(get('#toast').textContent,'成功');
-  console.log(JSON.stringify({categories:Object.keys(api.SUBTYPE_OPTIONS).length,subtypes,batches,names,boundedBatches,boundedNames,features:'keyword motifs, length bounds, conflict validation, locks, single refresh, styles, migration, import/export, edit, undo, capacity, storage failure, clipboard failure',status:'passed'},null,2));
+  console.log(JSON.stringify({categories:Object.keys(api.SUBTYPE_OPTIONS).length,subtypes,batches,names,boundedBatches,boundedNames,fixedBatches,fixedNames,features:'2–8 bounds, 2–6 defaults, whole-phrase length templates, keyword motifs, conflict validation, repetition and cold/fire filters, locks, single refresh, styles, migration, import/export, edit, undo, capacity, storage failure, clipboard failure',status:'passed'},null,2));
 })().catch(error=>{console.error(error);process.exitCode=1;});
