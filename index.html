@@ -485,10 +485,10 @@
     <section class="below">
       <section class="card favorites">
         <div class="favorites-head">
-          <h2>名字本 <span id="favoriteCount"></span></h2>
+          <h2>收藏夹 <span id="favoriteCount"></span></h2>
           <button class="clear" id="clearFavorites" type="button">清空</button>
         </div>
-        <p class="micro">为喜欢的名字写下用途，导出备份后可在其他浏览器导入。</p>
+        <p class="micro">支持逐条删除，也可添加自定义备注，如招式背景、使用人物、级别等。</p>
         <div class="library-tools">
           <button class="ghost" id="exportFavorites" type="button">导出备份</button>
           <button class="ghost" id="exportText" type="button">导出文本</button>
@@ -526,7 +526,7 @@
     <form id="favoriteForm">
       <h2 id="editTitle">编辑收藏</h2>
       <label for="editName">名称</label><input id="editName" maxlength="40" required>
-      <label for="editNote">用途或备注</label><textarea id="editNote" maxlength="200" rows="3" placeholder="例如：留给主角的佩剑"></textarea>
+      <label for="editNote">自定义备注</label><textarea id="editNote" maxlength="200" rows="3" placeholder="可记录招式背景、使用人物、级别等信息"></textarea>
       <p id="editError" role="alert"></p>
       <div class="library-tools"><button class="ghost" type="button" id="cancelEdit">取消</button><button class="ghost" type="submit">保存</button></div>
     </form>
@@ -972,7 +972,7 @@
         if (!name || [...name].length > 40 || [...note].length > 200 || /[\u0000-\u001f\u007f]/.test(name)) throw new Error('名称或备注格式不正确，未导入。');
         if (!seen.has(name)) { result.push({name, note}); seen.add(name); }
       }
-      if (result.length > FAVORITE_LIMIT) throw new Error('名字本最多保存 500 个名称，请拆分备份。');
+      if (result.length > FAVORITE_LIMIT) throw new Error('收藏夹最多保存 500 个名称，请拆分备份。');
       return result;
     }
 
@@ -1007,7 +1007,7 @@
     function toggleFavorite(name) {
       if (state.favorites.some(f => f.name === name)) changeFavorites(state.favorites.filter(f => f.name !== name));
       else {
-        if (state.favorites.length >= FAVORITE_LIMIT) { showToast('名字本已满，请先导出或删除部分收藏。'); return; }
+        if (state.favorites.length >= FAVORITE_LIMIT) { showToast('收藏夹已满，请先导出或删除部分收藏。'); return; }
         changeFavorites([{name, note: ''}, ...state.favorites]);
       }
     }
@@ -1015,14 +1015,14 @@
     function undoFavorites() {
       if (state.undo === null) return;
       state.favorites = state.undo; state.undo = null;
-      saveFavorites(); renderFavorites(); renderResults(); showToast('已撤销上次名字本修改');
+      saveFavorites(); renderFavorites(); renderResults(); showToast('已撤销上次收藏夹修改');
     }
 
     function importFavorites(data) {
       const incoming = normalizeFavorites(data);
       const known = new Set(state.favorites.map(f => f.name));
       const added = incoming.filter(f => !known.has(f.name));
-      if (state.favorites.length + added.length > FAVORITE_LIMIT) throw new Error('合并后超过 500 个名称，未导入。请先导出或整理名字本。');
+      if (state.favorites.length + added.length > FAVORITE_LIMIT) throw new Error('合并后超过 500 个名称，未导入。请先导出或整理收藏夹。');
       if (added.length) changeFavorites([...state.favorites, ...added]);
       return {added: added.length, skipped: incoming.length - added.length};
     }
@@ -1045,7 +1045,7 @@
 
     function saveEditedFavorite(original, name, note) {
       const row = normalizeFavorites([{name, note}])[0];
-      if (state.favorites.some(f => f.name === row.name && f.name !== original)) throw new Error('名字本中已有这个名称，请换一个名字。');
+      if (state.favorites.some(f => f.name === row.name && f.name !== original)) throw new Error('收藏夹中已有这个名称，请换一个名字。');
       if (!state.favorites.some(f => f.name === original)) throw new Error('这条收藏已不存在，请重新打开。');
       changeFavorites(state.favorites.map(f => f.name === original ? row : f));
     }
@@ -1066,7 +1066,9 @@
         const title = document.createElement('div'); title.className = 'favorite-name'; title.textContent = name;
         const detail = document.createElement('p'); detail.className = 'favorite-note'; detail.textContent = note || '尚未添加备注';
         const actions = document.createElement('div');
-        actions.append(button('复制', () => copyText(name, `已复制：${name}`)), button('编辑 / 备注', () => editFavorite(name)), button('删除', () => toggleFavorite(name)));
+        const removeButton = button('删除', () => toggleFavorite(name));
+        removeButton.setAttribute('aria-label', `删除收藏 ${name}`);
+        actions.append(button('复制', () => copyText(name, `已复制：${name}`)), button('编辑 / 备注', () => editFavorite(name)), removeButton);
         card.append(title, detail, actions); holder.appendChild(card);
       });
       showStorageWarning();
@@ -1102,7 +1104,7 @@
     $("#generatorForm").addEventListener("submit", (event) => { event.preventDefault(); generate(); });
     $("#category").addEventListener("change", () => { updateCategoryControls(); generate(); });
     $("#copyAll").addEventListener("click", () => copyText(state.results.join("\n"), `已复制 ${state.results.length} 个结果`));
-    $("#clearFavorites").addEventListener("click", () => { if (state.favorites.length) { changeFavorites([]); showToast("名字本已清空，可撤销上次修改"); } });
+    $("#clearFavorites").addEventListener("click", () => { if (state.favorites.length) { changeFavorites([]); showToast("收藏夹已清空，可撤销上次修改"); } });
     $("#undoFavorites").addEventListener("click", undoFavorites);
     $("#favoriteSearch").addEventListener("input", renderFavorites);
     $("#exportFavorites").addEventListener("click", () => downloadFavorites());
