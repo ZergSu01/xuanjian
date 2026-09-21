@@ -8,6 +8,10 @@
 
 当前程序版本：**v1.4**。
 
+**[下载 v1.4 完整包](https://github.com/ZergSu01/xuanjian/releases/download/v1.4/xuanjian-v1.4.zip)** · [查看本次更新](https://github.com/ZergSu01/xuanjian/releases/tag/v1.4)
+
+v1.4 新增 **2–8 字范围控制、候选锁定与单条替换、带自定义备注的收藏夹**，并改进关键词搭配与名称组合。收藏支持逐条删除、改名、搜索和导入导出，方便把命名灵感继续整理成自己的设定。
+
 ![玄鉴界面参考（v1.3）](docs/images/xuanjian-preview.png)
 
 上图为 v1.3 界面参考；v1.4 新增候选锁定、单条替换和收藏夹管理。
@@ -84,6 +88,7 @@ v1.4 可以读取旧版的字符串数组收藏，并使用新的独立存储键
 | `docs/licensing.md` | 许可及生成名称使用说明 |
 | `LICENSE` | MIT 许可证与版权声明 |
 | `tests/generator.test.cjs` | 可重复运行的生成逻辑回归测试 |
+| `docs/verification-v1.4.md` | v1.4 验证记录与已知测试边界 |
 | `.gitignore` | 排除系统杂项、凭据文件和临时产物 |
 | `.gitattributes` | 文本行尾设置 |
 
