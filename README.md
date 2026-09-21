@@ -12,9 +12,9 @@
 
 v1.4 新增 **2–8 字范围控制、候选锁定与单条替换、带自定义备注的收藏夹**，并改进关键词搭配与名称组合。收藏支持逐条删除、改名、搜索和导入导出，方便把命名灵感继续整理成自己的设定。
 
-![玄鉴界面参考（v1.3）](docs/images/xuanjian-preview.png)
+![玄鉴 v1.4 界面：字数设置、候选锁定与带备注的收藏夹](docs/images/xuanjian-v1.4-preview.png)
 
-上图为 v1.3 界面参考；v1.4 新增候选锁定、单条替换和收藏夹管理。
+上图为 v1.4 实际运行界面，展示 4–6 字生成、候选锁定、单条替换与收藏夹管理；收藏中的备注为手动填写的演示内容。
 
 ## 开始使用
 
@@ -84,6 +84,7 @@ v1.4 可以读取旧版的字符串数组收藏，并使用新的独立存储键
 | `README.md` | 使用说明 |
 | `CHANGELOG.md` | 本包版本记录 |
 | `docs/images/xuanjian-preview.png` | v1.3 界面参考截图 |
+| `docs/images/xuanjian-v1.4-preview.png` | v1.4 实际界面与示例收藏截图 |
 | `docs/sources.md` | 来源记录及核验边界 |
 | `docs/licensing.md` | 许可及生成名称使用说明 |
 | `LICENSE` | MIT 许可证与版权声明 |
