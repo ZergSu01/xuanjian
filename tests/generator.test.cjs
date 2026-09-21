@@ -26,7 +26,7 @@ const context = vm.createContext({
   localStorage: {getItem:k=>storage.get(k)||null, setItem:(k,v)=>storage.set(k,v)},
   navigator: {}, setTimeout: () => 0, clearTimeout(){}, console
 });
-vm.runInContext(scripts[0][1] + '\n globalThis.api = {SUBTYPE_OPTIONS, STYLE_LABELS, state, generate, updateCategoryControls, toggleFavorite, toggleLock, importFavorites, normalizeFavorites, exportData, changeFavorites, undoFavorites, saveEditedFavorite, saveFavorites, loadFavorites, PERSON_STYLES, buildPerson, glue, copyText};', context);
+vm.runInContext(scripts[0][1] + '\n globalThis.api = {SUBTYPE_OPTIONS, STYLE_LABELS, state, generate, updateCategoryControls, toggleFavorite, toggleLock, importFavorites, normalizeFavorites, exportData, changeFavorites, undoFavorites, saveEditedFavorite, saveFavorites, loadFavorites, PERSON_STYLES, buildPerson, glue, copyText, keywordHint, settingsError};', context);
 const api = context.api;
 let batches=0, names=0, subtypes=0;
 function check(category, subtype, style, placement, keyword, gender='random', surname='') {
@@ -98,6 +98,55 @@ assert.equal(api.glue('北冥','北冥'),'北冥');
 for (const placement of ['front','middle','end','auto']) check('person','double','daoist',placement,'𠮷山','male','𠮷野');
 assert.ok(api.state.results.every(n=>!/[\uD800-\uDBFF](?![\uDC00-\uDFFF])/.test(n)));
 
+// Hard length boundaries: never shorten keywords, pad names, or relax the chosen range.
+let boundedBatches = 0, boundedNames = 0;
+for(const [category,config] of Object.entries(api.SUBTYPE_OPTIONS)) {
+  for(const [subtype] of config.items) {
+    for(const [minLength,maxLength] of [['3','5'],['4','4']]) {
+      for(const [placement,keyword] of [['front','冰'],['middle','北冥'],['end','剑'],['auto','']]) {
+        for(const [k,v] of Object.entries({category,subtype,style:'mixed',placement,keyword,surname:'',gender:'random',minLength,maxLength})) get('#'+k).value=v;
+        api.generate(); boundedBatches++;
+        for(const name of api.state.results) {
+          boundedNames++;
+          assert.ok([...name].length>=Number(minLength) && [...name].length<=Number(maxLength),name);
+          assert.ok(!keyword || name.includes(keyword),name);
+          if(keyword && placement==='front') assert.ok(name.startsWith(keyword),name);
+          if(keyword && placement==='end') assert.ok(name.endsWith(keyword),name);
+          if(keyword && placement==='middle') assert.ok(!name.startsWith(keyword)&&!name.endsWith(keyword),name);
+        }
+        assert.equal(new Set(api.state.results).size,api.state.results.length);
+      }
+    }
+  }
+}
+for(const [k,v] of Object.entries({category:'person',subtype:'double',style:'daoist',placement:'auto',keyword:'',surname:'苏',minLength:'3',maxLength:'3'})) get('#'+k).value=v;
+api.generate(); assert.equal(api.state.results.length,10); assert.ok(api.state.results.every(n=>[...n].length===3));
+const validBefore=Array.from(api.state.results);
+get('#minLength').value='6';get('#maxLength').value='3';api.generate();
+assert.deepEqual(Array.from(api.state.results),validBefore); assert.match(get('#generationNote').textContent,/最少字数不能大于最多/);
+get('#minLength').value='1.5';api.generate();assert.match(get('#generationNote').textContent,/整数/);
+get('#minLength').value='';get('#maxLength').value='2';get('#keyword').value='北冥';get('#placement').value='middle';api.generate();assert.match(get('#generationNote').textContent,/前后至少/);
+get('#placement').value='front';get('#maxLength').value='1';api.generate();assert.match(get('#generationNote').textContent,/关键词本身/);
+get('#keyword').value='';get('#minLength').value='20';get('#maxLength').value='20';api.generate();
+assert.equal(api.state.results.length,0);assert.equal(get('#copyAll').disabled,true);assert.match(get('#generationNote').textContent,/不会截断/);
+get('#minLength').value='';get('#maxLength').value='';
+// Known-keyword inference is limited to unspecified choices; explicit sword type wins over fire hint.
+for(const [k,v] of Object.entries({category:'skill',subtype:'any',style:'mixed',placement:'middle',keyword:'烈火',surname:''})) get('#'+k).value=v;
+api.generate();assert.equal(api.state.results.length,10);
+assert.ok(api.state.results.every(n=>n.includes('烈火') && /(?:火法|炎诀|火经|法|经)$/.test(n)),JSON.stringify(api.state.results));
+get('#subtype').value='sword';get('#style').value='jianghu';api.generate();
+assert.ok(api.state.results.every(n=>/剑(?:诀|法|经)$/.test(n)));
+get('#subtype').value='any';get('#style').value='mixed';get('#placement').value='front';api.generate();
+assert.ok(api.state.results.every(n=>!n.replace('烈火','').includes('火')));
+assert.equal(api.keywordHint('冰火'),null);assert.equal(api.keywordHint('北冥'),null);
+assert.equal(api.keywordHint('霜雪').label,'冰雪');
+// A new length setting invalidates locks; fixed length counts the entire name, including astral characters.
+api.toggleLock(api.state.results[0]);get('#minLength').value='5';get('#maxLength').value='5';api.generate();
+assert.equal(api.state.locked.size,0);assert.ok(api.state.results.every(n=>[...n].length===5));
+for(const [k,v] of Object.entries({category:'person',subtype:'double',style:'daoist',placement:'end',keyword:'𠮷',surname:'苏',minLength:'3',maxLength:'3'}))get('#'+k).value=v;
+api.generate();assert.equal(api.state.results.length,10);assert.ok(api.state.results.every(n=>[...n].length===3&&n.endsWith('𠮷')));
+get('#minLength').value='';get('#maxLength').value='';
+
 // Legacy migration, exact-name dedupe, export/import round trip, and atomic failures.
 api.changeFavorites([]);
 storage.set('xuanjian-favorites',JSON.stringify(['旧收藏','旧收藏']));
@@ -140,5 +189,5 @@ assert.equal(storage.get('xuanjian-favorites-v2'),corrupt); assert.equal(get('#s
   await api.copyText('test','成功'); assert.match(get('#toast').textContent,/复制失败/);
   context.document.execCommand=()=>true;
   await api.copyText('test','成功'); assert.equal(get('#toast').textContent,'成功');
-  console.log(JSON.stringify({categories:Object.keys(api.SUBTYPE_OPTIONS).length,subtypes,batches,names,features:'locks, single refresh, styles, migration, import/export, edit, undo, capacity, storage failure, clipboard failure',status:'passed'},null,2));
+  console.log(JSON.stringify({categories:Object.keys(api.SUBTYPE_OPTIONS).length,subtypes,batches,names,boundedBatches,boundedNames,features:'keyword motifs, length bounds, conflict validation, locks, single refresh, styles, migration, import/export, edit, undo, capacity, storage failure, clipboard failure',status:'passed'},null,2));
 })().catch(error=>{console.error(error);process.exitCode=1;});

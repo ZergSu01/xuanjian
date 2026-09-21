@@ -423,7 +423,7 @@
           <label for="keyword">关键词（可不填）</label>
           <input id="keyword" type="text" maxlength="12" autocomplete="off" placeholder="例如：北冥、雪、剑">
         </div>
-        <p class="hint">输入 1–6 个汉字；“开头 / 中间 / 末尾”会严格对应成品名称的首部、内部与最后位置。</p>
+        <p class="hint">输入 1–6 个汉字；关键词完整保留在指定位置。冰雪、火焰、雷电等常见意象可辅助搭配，不识别任意句子的含义。</p>
 
         <div class="field-row" id="specialOptions">
           <div class="field" id="genderField" hidden>
@@ -464,6 +464,18 @@
             </select>
           </div>
         </div>
+
+        <div class="field-row length-options">
+          <div class="field">
+            <label for="minLength">最少字数（可不填）</label>
+            <input id="minLength" type="number" min="1" max="20" step="1" inputmode="numeric" placeholder="不限" aria-describedby="lengthHint">
+          </div>
+          <div class="field">
+            <label for="maxLength">最多字数（可不填）</label>
+            <input id="maxLength" type="number" min="1" max="20" step="1" inputmode="numeric" placeholder="不限" aria-describedby="lengthHint">
+          </div>
+        </div>
+        <p class="hint" id="lengthHint">按完整名称计数，包含姓氏、关键词和后缀。两项相同可限定固定字数，留空不限制；不会截断或补字凑长度。</p>
 
         <button class="primary" id="generateButton" type="submit">生成十个</button>
         <p class="micro">锁定喜欢的候选，再换一批；也可以只换一条。更改命名设置会解除锁定。</p>
@@ -751,8 +763,26 @@
       return surname + keyword + tail;
     }
 
-    function rootFor(style) {
-      if (style === "mixed") return pick(POOLS[pick(Object.keys(POOLS))]);
+    const KEYWORD_HINTS = [
+      {label: '冰雪', match: /冰|雪|霜|寒/, skill: 'ice', roots: ['寒玉','凝霜','素雪','冰魄','凛冬','霜华','冷月','玄冰','雪原','北风','银霜','寒泉','冬夜','流霜','清寒','冰河'], bridges: ['魄','霜','雪','玉','晶','寒','华','心']},
+      {label: '火焰', match: /火|炎|焰|焚/, skill: 'fire', roots: ['赤阳','流火','丹霞','炎海','熔金','焚天','烬明','赤炼','朱明','烈阳','火羽','燎原','灼华','金乌','赤曜','阳焰'], bridges: ['阳','焰','烬','炎','赤','光','心','华']},
+      {label: '雷电', match: /雷|霆|电/, skill: 'thunder', roots: ['震岳','惊雷','紫电','青霆','雷泽','霆光','鸣空','奔雷','霹雳','天威','震空','电芒','风雷','雷池','轰天','苍雷'], bridges: ['震','霆','电','鸣','光','霄','威','罡']},
+      {label: '水泽', match: /水|海|潮|浪|江|湖/, roots: ['沧海','清波','碧水','听潮','寒江','澄渊','归流','沧浪','镜湖','烟波','潮生','流泉','清溪','秋水','江月','龙津'], bridges: ['澜','波','潮','澄','流','泉','渊','月']},
+      {label: '佛门', match: /佛|禅|菩提|般若/, style: 'buddhist', bridges: ['莲','觉','净','明','心','空','慈','真']}
+    ];
+
+    function keywordHint(keyword) {
+      const matches = KEYWORD_HINTS.filter(hint => hint.match.test(keyword));
+      return matches.length === 1 ? matches[0] : null;
+    }
+
+    function rootFor(style, keyword = '') {
+      if (style === 'mixed') {
+        const hint = keywordHint(keyword);
+        if (hint?.roots) return pick(hint.roots);
+        if (hint?.style) return pick(POOLS[hint.style]);
+        return pick(POOLS[pick(Object.keys(POOLS))]);
+      }
       return pick(POOLS[style]);
     }
 
@@ -766,14 +796,19 @@
       after = compact(after);
       if (!keyword) return glue(glue(before, middle), after);
       const mode = placement === "auto" ? pick(["front", "middle", "middle", "end"]) : placement;
-      if (mode === "front") return glue(keyword, glue(middle || pick(WORDS.essences), after));
+      if (mode === "front") {
+        const bridge = middle || pick(keywordHint(keyword)?.bridges || WORDS.essences);
+        return glue(keyword, chance(25) ? after : glue(bridge, after));
+      }
       if (mode === "end") return glue(glue(before, middle), keyword);
+      const embedded = after.indexOf(keyword);
+      if (embedded >= 0 && embedded + keyword.length < after.length) after = after.slice(embedded + keyword.length);
       while (after.startsWith(keyword)) after = after.slice(keyword.length);
       if (!after || after.endsWith(keyword)) {
         if (after.endsWith(keyword)) after = after.slice(0, -keyword.length);
         after += pick(MIDDLE_GUARDS[category] || ["名"]);
       }
-      return glue(before, keyword) + (keyword.endsWith(after[0]) && after.length > 1 ? after.slice(1) : after);
+      return glue(glue(before, keyword), after);
     }
 
     function keywordPositionIsValid(name, keyword, placement) {
@@ -792,7 +827,7 @@
     }
 
     function buildName(category, keyword, style, placement, subtype, gender, surname) {
-      const root = rootFor(style);
+      const root = rootFor(style, keyword);
       const themed = THEMES[category]?.[subtype];
       const root2 = chance(34) ? pick(WORDS.essences) : "";
       const action = pick(WORDS.actions);
@@ -864,23 +899,45 @@
     }
 
     function readSettings() {
-      const keys = ['category', 'subtype', 'style', 'placement', 'gender', 'surname', 'keyword'];
+      const keys = ['category', 'subtype', 'style', 'placement', 'gender', 'surname', 'keyword', 'minLength', 'maxLength'];
       const settings = Object.fromEntries(keys.map(k => [k, $('#' + k).value]));
       settings.keyword = cleanKeyword(settings.keyword);
       settings.surname = [...cleanKeyword(settings.surname)].slice(0, 4).join('');
       $('#keyword').value = settings.keyword;
       $('#surname').value = settings.surname;
+      settings.minLength = settings.minLength.trim() === '' ? null : Number(settings.minLength);
+      settings.maxLength = settings.maxLength.trim() === '' ? null : Number(settings.maxLength);
       return settings;
+    }
+
+    function settingsError(s) {
+      for (const value of [s.minLength, s.maxLength]) {
+        if (value !== null && (!Number.isInteger(value) || value < 1 || value > 20)) return '字数请填写 1–20 的整数，或留空表示不限。';
+      }
+      if (s.minLength !== null && s.maxLength !== null && s.minLength > s.maxLength) return '最少字数不能大于最多字数。';
+      const keywordLength = [...s.keyword].length;
+      const required = keywordLength + (s.keyword && s.placement === 'middle' ? 2 : 0);
+      if (s.maxLength !== null && required > s.maxLength) return s.placement === 'middle' ? '关键词放在中间时，前后至少各需 1 个字。请增加最多字数或缩短关键词。' : '关键词本身已超过最多字数。请增加字数或缩短关键词。';
+      return '';
     }
 
     function candidateFor(s) {
       const subtypes = SUBTYPE_OPTIONS[s.category].items.map(item => item[0]).filter(value => value !== 'any');
-      const subtype = s.subtype === 'any' && s.category !== 'title' ? pick(subtypes) : s.subtype;
+      const hint = keywordHint(s.keyword);
+      const inferred = s.category === 'skill' && s.subtype === 'any' ? hint?.skill : null;
+      const subtype = inferred || (s.subtype === 'any' && s.category !== 'title' ? pick(subtypes) : s.subtype);
       return buildName(s.category, s.keyword, s.style, s.placement, subtype, s.gender, s.surname);
     }
 
     function acceptable(name, s) {
       if (!keywordPositionIsValid(name, s.keyword, s.placement)) return false;
+      // Avoid repeating the literal motif outside the user's keyword (e.g. 烈火炎火经).
+      if (s.category !== 'person' && keywordHint(s.keyword)) {
+        const outside = name.replace(s.keyword, '');
+        if ([...s.keyword].some(char => outside.includes(char))) return false;
+      }
+      const length = [...name].length;
+      if ((s.minLength !== null && length < s.minLength) || (s.maxLength !== null && length > s.maxLength)) return false;
       // Do not reject repetition the writer deliberately included in a keyword or surname.
       const remainder = name.replace(s.keyword || '\u0000', '').replace(s.surname || '\u0000', '');
       return !/(.)\1/u.test(remainder);
@@ -888,6 +945,11 @@
 
     function generate(replaceIndex = null) {
       const s = readSettings();
+      const error = settingsError(s);
+      if (error) {
+        $('#generationNote').textContent = error + ' 当前显示的候选未重新生成。';
+        return;
+      }
       const signature = JSON.stringify(s);
       const changed = signature !== state.signature;
       if (changed) {
@@ -905,7 +967,7 @@
       let relaxed = false;
       for (let i = 0; i < result.length; i++) {
         if (result[i]) continue;
-        let fallback = null;
+        let fallback = !changed && previous[i] && !used.has(previous[i]) && acceptable(previous[i], s) ? previous[i] : null;
         for (let attempt = 0; attempt < 500; attempt++) {
           const name = candidateFor(s);
           if (used.has(name) || !acceptable(name, s)) continue;
@@ -918,11 +980,14 @@
       state.results = result.filter(Boolean);
       state.recent = [...new Set([...state.recent, ...previous, ...state.results])].slice(-100);
       const {category, subtype, style, keyword, placement} = s;
-      $('#resultsMeta').textContent = `${LABELS[category]} · ${subtypeLabel(category, subtype)} · ${STYLE_LABELS[style]} · ${state.results.length} 个结果` + (keyword ? ` · ${keyword} / ${PLACEMENT_LABELS[placement]}` : '');
+      const lengthLabel = s.minLength === null && s.maxLength === null ? '' : s.minLength === null ? ` · 最多 ${s.maxLength} 字` : s.maxLength === null ? ` · 最少 ${s.minLength} 字` : s.minLength === s.maxLength ? ` · ${s.minLength} 字` : ` · ${s.minLength}–${s.maxLength} 字`;
+      $('#resultsMeta').textContent = `${LABELS[category]} · ${subtypeLabel(category, subtype)} · ${STYLE_LABELS[style]} · ${state.results.length} 个结果` + (keyword ? ` · ${keyword} / ${PLACEMENT_LABELS[placement]}` : '') + lengthLabel;
       const notes = [];
+      const hint = keywordHint(keyword);
+      if (hint && category !== 'person' && (style === 'mixed' || (category === 'skill' && subtype === 'any'))) notes.push(`已参考“${hint.label}”意象搭配，明确选择的风格与下级类别优先。`);
       if (changed && previous.length) notes.push('设置已更新，原候选已解除锁定。');
       if (relaxed) notes.push('当前组合较少，部分结果可能与最近批次重复。');
-      if (state.results.length < 10) notes.push(`本次找到 ${state.results.length} 个候选，可尝试更换关键词。`);
+      if (state.results.length < 10) notes.push(`本次找到 ${state.results.length} 个候选，可尝试放宽字数、更换姓名形式或关键词；不会截断或补字。`);
       if (category === 'person' && keyword && placement === 'front' && s.surname) notes.push('关键词置于开头时优先使用关键词，不保留指定姓氏。');
       $('#generationNote').textContent = notes.join(' ') || '优先避开最近 100 个候选。锁定喜欢的名字，再继续挑选。';
       renderResults();
@@ -941,6 +1006,12 @@
 
     function renderResults() {
       const list = $('#results'); list.textContent = '';
+      if (!state.results.length) {
+        const empty = document.createElement('li'); empty.className = 'empty';
+        empty.textContent = '当前规则下未找到符合条件的名称。请调整字数范围或命名设置。';
+        $('#results').appendChild(empty);
+      }
+
       state.results.forEach((name, index) => {
         const item = document.createElement('li'); item.className = 'result';
         const num = document.createElement('span'); num.className = 'num'; num.textContent = String(index + 1).padStart(2, '0');
@@ -959,6 +1030,7 @@
       const count = state.locked.size;
       $('#generateButton').textContent = count ? `保留 ${count} 个，换一批` : '生成十个';
       $('#generateButton').disabled = count === 10;
+      $('#copyAll').disabled = state.results.length === 0;
     }
 
     function normalizeFavorites(data) {
@@ -1125,8 +1197,8 @@
       try { saveEditedFavorite(editingName, $("#editName").value, $("#editNote").value); $("#favoriteDialog").close(); }
       catch (error) { $("#editError").textContent = error.message; }
     });
-    ["subtype", "style", "placement", "gender", "surname", "keyword"].forEach(id => {
-      $("#" + id).addEventListener(["surname", "keyword"].includes(id) ? "input" : "change", () => { state.locked.clear(); renderResults(); $("#generationNote").textContent = "设置已更改，点击生成应用新设置。"; });
+    ["subtype", "style", "placement", "gender", "surname", "keyword", "minLength", "maxLength"].forEach(id => {
+      $("#" + id).addEventListener(["surname", "keyword", "minLength", "maxLength"].includes(id) ? "input" : "change", () => { state.locked.clear(); renderResults(); $("#generationNote").textContent = "设置已更改，点击生成应用新设置。"; });
     });
 
     updateCategoryControls();
