@@ -335,6 +335,30 @@
       .result { grid-template-columns: 25px minmax(0, 1fr) 34px 34px; }
     }
 
+    .result { grid-template-columns: 25px minmax(0, 1fr); padding: 13px 4px; }
+    .result-actions { grid-column: 2; display: flex; flex-wrap: wrap; gap: 4px; }
+    .action-btn { border: 1px solid transparent; background: transparent; border-radius: 6px; color: #9cab9f; padding: 6px 8px; font-size: 12px; min-height: 34px; }
+    .action-btn:hover, .action-btn[aria-pressed="true"] { color: var(--gold-bright); background: rgba(215,185,111,.1); border-color: rgba(215,185,111,.2); }
+    button:disabled { opacity: .4; cursor: default; }
+    button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 2px solid var(--gold); outline-offset: 3px; }
+    .results-head > .ghost { flex-shrink: 0; white-space: nowrap; }
+    .generation-note { margin: 12px 20px 0; font-size: 12px; color: var(--muted); min-height: 18px; }
+    .library-tools { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
+    .library-tools .ghost { font-size: 12px; padding: 7px 9px; }
+    .favorite-list { display: grid; gap: 10px; max-height: 460px; overflow: auto; }
+    .favorite-entry { border: 1px solid rgba(140,185,167,.2); border-radius: 10px; padding: 12px; min-width: 0; }
+    .favorite-name { font-size: 17px; overflow-wrap: anywhere; }
+    .favorite-note { color: var(--muted); font-size: 12px; white-space: pre-wrap; overflow-wrap: anywhere; margin: 6px 0; }
+    #favoriteCount { font: 12px sans-serif; color: var(--muted); }
+    .storage-warning, #editError { color: #efbd91; font-size: 13px; }
+    .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+    dialog { width: min(420px, calc(100% - 36px)); box-sizing: border-box; border: 1px solid var(--gold); border-radius: 16px; background: #15201c; color: var(--text); padding: 24px; }
+    dialog::backdrop { background: rgba(0,0,0,.65); }
+    dialog h2 { margin: 0 0 20px; font-size: 20px; }
+    dialog label { display: block; margin: 12px 0 6px; }
+    textarea { box-sizing: border-box; width: 100%; background: #0d1613; color: var(--text); border: 1px solid #455248; border-radius: 8px; padding: 10px; font: inherit; resize: vertical; }
+    .toast { max-width: calc(100% - 36px); width: max-content; box-sizing: border-box; }
+
     @media (prefers-reduced-motion: reduce) {
       *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; }
     }
@@ -355,7 +379,7 @@
 
     <section class="workspace" aria-label="名词生成器">
       <form class="card controls" id="generatorForm">
-        <p class="eyebrow">生成设定</p>
+        <p class="eyebrow">命名设置</p>
 
         <div class="field">
           <label for="category">总类别</label>
@@ -397,7 +421,7 @@
 
         <div class="field">
           <label for="keyword">关键词（可不填）</label>
-          <input id="keyword" type="text" maxlength="6" autocomplete="off" placeholder="例如：北冥、雪、剑">
+          <input id="keyword" type="text" maxlength="12" autocomplete="off" placeholder="例如：北冥、雪、剑">
         </div>
         <p class="hint">输入 1–6 个汉字；“开头 / 中间 / 末尾”会严格对应成品名称的首部、内部与最后位置。</p>
 
@@ -412,7 +436,7 @@
           </div>
           <div class="field" id="surnameField" hidden>
             <label for="surname">指定姓氏（可不填）</label>
-            <input id="surname" type="text" maxlength="4" autocomplete="off" placeholder="例如：沈、司马">
+            <input id="surname" type="text" maxlength="8" autocomplete="off" placeholder="例如：沈、司马">
           </div>
         </div>
 
@@ -441,8 +465,8 @@
           </div>
         </div>
 
-        <button class="primary" type="submit">生成十个</button>
-        <p class="micro">按回车也能生成。结果自动去重；点 ☆ 收藏，点复制图标复制单项。</p>
+        <button class="primary" id="generateButton" type="submit">生成十个</button>
+        <p class="micro">锁定喜欢的候选，再换一批；也可以只换一条。更改命名设置会解除锁定。</p>
       </form>
 
       <section class="card results-card" aria-live="polite">
@@ -453,6 +477,7 @@
           </div>
           <button class="ghost" type="button" id="copyAll">复制全部</button>
         </div>
+        <p class="generation-note" id="generationNote" role="status"></p>
         <ol class="results" id="results"></ol>
       </section>
     </section>
@@ -460,32 +485,52 @@
     <section class="below">
       <section class="card favorites">
         <div class="favorites-head">
-          <h2>已收藏</h2>
+          <h2>名字本 <span id="favoriteCount"></span></h2>
           <button class="clear" id="clearFavorites" type="button">清空</button>
         </div>
+        <p class="micro">为喜欢的名字写下用途，导出备份后可在其他浏览器导入。</p>
+        <div class="library-tools">
+          <button class="ghost" id="exportFavorites" type="button">导出备份</button>
+          <button class="ghost" id="exportText" type="button">导出文本</button>
+          <button class="ghost" id="importFavorites" type="button">导入备份</button>
+          <button class="ghost" id="undoFavorites" type="button" disabled>撤销上次修改</button>
+        </div>
+        <input id="importFile" type="file" accept=".json,application/json" hidden>
+        <p class="storage-warning" id="storageWarning" role="status" hidden></p>
+        <label class="sr-only" for="favoriteSearch">搜索名字或备注</label>
+        <input id="favoriteSearch" type="search" placeholder="搜索名字或备注" autocomplete="off">
         <div class="favorite-list" id="favoriteList"></div>
       </section>
 
       <details class="card">
         <summary>词库来源与使用说明</summary>
         <div class="detail-body">
-          <p>词库以公版古籍原文中的地貌、天象、草木、神兽与哲学词素为底，再按“功法、宗门、器物、地名”等类别分别组合。原文只用于核查词义和构词语感；生成结果是新的随机组合，不代表原文词句。</p>
-          <p>分类层级参考了原项目的实际源码，但没有照搬：总类别进一步归入“人物与名号、修炼与术法、器物与资源、生灵与势力、地理与空间”五组；下级分类优先按写作时真正会用到的修炼方向、器物形制、组织职能、地点形态与丹药功用划分。</p>
+          <p>词库采用地貌、天象、草木及传统意象等词素，按类别、风格与下级选项组合。v1.4 增加了分类搭配词和人物风格用字；这些组合用于创作灵感，不是古籍引文，也未逐词完成古籍考证。</p>
+          <p>类别延续 v1.3 的五大组与 17 个总类别，按修炼方向、器物形制、组织职能、地点形态与丹药功用细分。以下链接为原页面列出的参考资料，来源记录不等于逐词考证结论。</p>
           <ul>
             <li><a href="https://ctext.org/shan-hai-jing/zh" target="_blank" rel="noreferrer">《山海经》原文</a>：山川、水系、草木、矿物、异兽类词素。</li>
             <li><a href="https://ctext.org/huainanzi/zh" target="_blank" rel="noreferrer">《淮南子》原文</a>：天文、阴阳、四时、八极、清浊等宇宙观词素。</li>
             <li><a href="https://ctext.org/chu-ci/zh" target="_blank" rel="noreferrer">《楚辞》原文</a>：云旗、兰蕙、洞庭、九歌等意象与节奏参考。</li>
-            <li><a href="https://github.com/hythl0day/random_chinese_fantasy_names" target="_blank" rel="noreferrer">原随机生成项目</a>：仅参考“本地词库 + 规则随机”的产品思路；本页代码、界面、词库与组合规则均重新编写。</li>
+            <li><a href="https://github.com/hythl0day/random_chinese_fantasy_names" target="_blank" rel="noreferrer">原随机生成项目</a>：原页面列出的分类与本地规则随机思路参考；未进行逐项代码或词库比对。</li>
           </ul>
-          <p style="margin-top:12px">说明：佛、道传统术语按所属风格单独分池；现代玄幻作品的完整专名没有被收入。页面不连接网络，只有您主动点击上面的来源链接时才会打开网站。</p>
+          <p style="margin-top:12px">说明：佛、道传统术语按所属风格单独分池；词库未进行现有作品专名的全面重名核验。页面不连接网络，只有您主动点击上面的来源链接时才会打开网站。</p>
         </div>
       </details>
     </section>
 
-    <footer>玄鉴 v1.3 · 关键词位置规则修复于 2026-08-29 · 单文件离线版</footer>
+    <footer>玄鉴 v1.4 · 灵感由此起，故事由你续 · 单文件离线版</footer>
   </main>
 
   <div class="toast" id="toast" role="status"></div>
+  <dialog id="favoriteDialog" aria-labelledby="editTitle">
+    <form id="favoriteForm">
+      <h2 id="editTitle">编辑收藏</h2>
+      <label for="editName">名称</label><input id="editName" maxlength="40" required>
+      <label for="editNote">用途或备注</label><textarea id="editNote" maxlength="200" rows="3" placeholder="例如：留给主角的佩剑"></textarea>
+      <p id="editError" role="alert"></p>
+      <div class="library-tools"><button class="ghost" type="button" id="cancelEdit">取消</button><button class="ghost" type="submit">保存</button></div>
+    </form>
+  </dialog>
 
   <script>
     "use strict";
@@ -595,8 +640,39 @@
       formation: ["阵", "禁"], realm: ["境", "界"], organization: ["会", "署"], physique: ["体", "脉"]
     };
 
+    const PERSON_STYLES = {
+      archaic: ['怀景昭承允季仲伯子玄','衡朴宁远章甫和川真渊'],
+      immortal: ['云凌清霁瑶星玄灵昭羽','霄岚遥羽微澈尘璇宁珩'],
+      jianghu: ['沈岳行长燕陆闻楚秦萧','舟野川锋秋棠歌岳远白'],
+      daoist: ['守怀知清景玄抱静明道','一真宁微尘和朴虚衡清'],
+      buddhist: ['明净觉慧照慈静善知怀','尘空宁心觉真如安澄音'],
+      demonic: ['夜寒厉离沉朔烬幽殷晦','渊烛冥影夜绝离霜锋尘'],
+      yaoyi: ['青绯白羽灵月玄赤雪九','岐翎羽璃绡影棠珀歌灵']
+    };
+    const THEMES = {
+      skill: {sword:['分光','照影','听潮','流云','问心','回风'], blade:['断流','劈岳','横江','破阵'], spear:['贯日','游龙','破军','点星'], boxing:['撼山','崩石','擒龙','开碑'], movement:['掠影','踏云','逐月','无痕'], internal:['养元','归息','凝神','周天'], body:['洗髓','易筋','炼骨','伏龙'], beast:['驭灵','唤禽','契兽','通心'], soul:['存思','澄心','守神','照魂'], thunder:['驭霆','震岳','引电','鸣空'], fire:['焚心','燎原','炼阳','流焰'], ice:['凝霜','封江','寒魄','飞雪'], poison:['蚀脉','化骨','锁魂','潜蛊']},
+      pill: {healing:['白芷','玉芝','青莲','雪参'],restore:['黄精','紫芝','松露','灵泉'],breakthrough:['紫金','玉髓','龙芝','星露'],body:['赤铜','龙骨','石髓','金芝'],soul:['月华','幽兰','静莲','寒玉'],poison:['蛇涎','赤蝎','腐萤','幽蛊'],lifespan:['长青','玉桃','灵芝','春露']},
+      material: {metal:['玄纹','流金','赤炼','星沉'],jade:['凝光','冰纹','烟霞','月白'],herb:['九叶','并蒂','含露','凝霜'],wood:['千节','虬枝','盘根','青纹'],liquid:['凝露','寒泉','月华','清灵'],flame:['青莲','赤焰','寒魄','幽蓝'],bone:['苍龙','白麟','青鸾','玄蛟']},
+      formation: {attack:['诛邪','破军','裂空','荡魔'],defense:['磐石','金城','定岳','藏锋'],trap:['缚龙','困仙','迷途','锁天'],illusion:['迷心','梦蝶','浮光','镜花'],gather:['归元','汇流','纳气','承露'],teleport:['咫尺','缩地','流光','渡虚'],seal:['镇岳','伏龙','封天','禁灵']},
+      book: {alchemybook:['辨药','丹方','百草','养元'],craftbook:['铸剑','百炼','金石','琢玉'],historybook:['旧事','拾遗','列国','游记'],mapbook:['寻山','观海','九州','行舟']},
+      secret: {escape:['无影','流光','穿云','化虹'],curse:['缚魂','摄心','镇魄','禁言'],seal:['伏魔','定山','覆海','镇灵'],eye:['洞微','破妄','观星','照夜'],forbidden:['燃血','祭魂','逆命','断生'],divine:['法天','移山','覆海','御风'],change:['化羽','隐形','幻身','移影'],summon:['唤灵','请神','引魂','召雨']}
+    };
+
+    function glue(left, right) {
+      if (!left || !right) return left + right;
+      const a = [...left], b = [...right];
+      for (let n = Math.min(a.length, b.length); n > 0; n--) {
+        if (a.slice(-n).join('') === b.slice(0, n).join('')) return left + b.slice(n).join('');
+      }
+      return left + right;
+    }
+
     const $ = (selector) => document.querySelector(selector);
-    const state = { results: [], favorites: loadFavorites() };
+    const FAVORITE_LIMIT = 500;
+    let storageIssue = "";
+    let toastTimer;
+    let editingName = null;
+    const state = { results: [], favorites: loadFavorites(), locked: new Set(), recent: [], signature: "", undo: null };
 
     function randomInt(max) {
       if (max <= 0) return 0;
@@ -652,14 +728,17 @@
       return gender === "random" ? pick(["male", "female"]) : gender;
     }
 
-    function buildPerson(keyword, placement, subtype, gender, specifiedSurname) {
+    function buildPerson(keyword, placement, subtype, gender, specifiedSurname, style) {
       const actualGender = resolvedGender(gender);
       const firstPool = actualGender === "female" ? WORDS.femaleA : WORDS.maleA;
       const secondPool = actualGender === "female" ? WORDS.femaleB : WORDS.maleB;
-      const actualSubtype = subtype === "any" ? pick(["single", "double", "combine"]) : subtype;
-      const surname = cleanKeyword(specifiedSurname).slice(0, 4) || pick(actualSubtype === "compound" ? WORDS.compoundSurnames : WORDS.surnames);
-      const lead = actualSubtype === "combine" ? pick(WORDS.virtualChars) : pick(firstPool);
-      const tail = pick(secondPool);
+      const actualSubtype = subtype === "any" ? pick(["single", "double", "combine", "compound"]) : subtype;
+      const surname = [...cleanKeyword(specifiedSurname)].slice(0, 4).join('') || pick(actualSubtype === "compound" ? WORDS.compoundSurnames : WORDS.surnames);
+      const styled = PERSON_STYLES[style];
+      const leadPool = styled ? [...styled[0]] : firstPool;
+      const tailPool = styled ? [...styled[1], ...secondPool.slice(0, 8)] : secondPool;
+      const lead = actualSubtype === "combine" ? pick(WORDS.virtualChars) : pick(leadPool);
+      const tail = pick(tailPool);
 
       if (!keyword) {
         if (actualSubtype === "single") return surname + tail;
@@ -678,23 +757,23 @@
     }
 
     function cleanKeyword(value) {
-      return value.replace(/[\s\p{P}\p{S}]/gu, "").slice(0, 6);
+      return [...value.replace(/[\s\p{P}\p{S}]/gu, "")].slice(0, 6).join("");
     }
 
     function joinKeyword(category, keyword, placement, before, middle, after) {
       before = compact(before);
       middle = compact(middle);
       after = compact(after);
-      if (!keyword) return compact(before + middle + after);
+      if (!keyword) return glue(glue(before, middle), after);
       const mode = placement === "auto" ? pick(["front", "middle", "middle", "end"]) : placement;
-      if (mode === "front") return keyword + compact((middle || pick(WORDS.essences)) + after);
-      if (mode === "end") return compact(before + middle) + keyword;
+      if (mode === "front") return glue(keyword, glue(middle || pick(WORDS.essences), after));
+      if (mode === "end") return glue(glue(before, middle), keyword);
       while (after.startsWith(keyword)) after = after.slice(keyword.length);
       if (!after || after.endsWith(keyword)) {
         if (after.endsWith(keyword)) after = after.slice(0, -keyword.length);
         after += pick(MIDDLE_GUARDS[category] || ["名"]);
       }
-      return before + keyword + after;
+      return glue(before, keyword) + (keyword.endsWith(after[0]) && after.length > 1 ? after.slice(1) : after);
     }
 
     function keywordPositionIsValid(name, keyword, placement) {
@@ -714,6 +793,7 @@
 
     function buildName(category, keyword, style, placement, subtype, gender, surname) {
       const root = rootFor(style);
+      const themed = THEMES[category]?.[subtype];
       const root2 = chance(34) ? pick(WORDS.essences) : "";
       const action = pick(WORDS.actions);
       const measure = pick(WORDS.measures);
@@ -722,7 +802,7 @@
 
       switch (category) {
         case "person": {
-          name = buildPerson(keyword, placement, subtype, gender, surname);
+          name = buildPerson(keyword, placement, subtype, gender, surname, style);
           break;
         }
         case "title":
@@ -774,107 +854,222 @@
           name = joinKeyword(category, keyword, placement, chance(48) ? measure : root, chance(56) ? pick(WORDS.essences) : "", pick(endingsFor(category, subtype, gender)));
           break;
       }
+      // Selected subtypes use compatible phrases instead of unrelated generic fragments.
+      if (category !== "person" && themed) {
+        const ending = pick(endingsFor(category, subtype, gender));
+        const stem = pick(themed);
+        name = joinKeyword(category, keyword, placement, root, chance(65) ? stem : "", ending);
+      }
       return keyword ? name : compact(name);
     }
 
-    function generate() {
-      const category = $("#category").value;
-      const subtype = $("#subtype").value;
-      const style = $("#style").value;
-      const placement = $("#placement").value;
-      const gender = $("#gender").value;
-      const surname = cleanKeyword($("#surname").value).slice(0, 4);
-      const keyword = cleanKeyword($("#keyword").value);
-      $("#keyword").value = keyword;
-      $("#surname").value = surname;
+    function readSettings() {
+      const keys = ['category', 'subtype', 'style', 'placement', 'gender', 'surname', 'keyword'];
+      const settings = Object.fromEntries(keys.map(k => [k, $('#' + k).value]));
+      settings.keyword = cleanKeyword(settings.keyword);
+      settings.surname = [...cleanKeyword(settings.surname)].slice(0, 4).join('');
+      $('#keyword').value = settings.keyword;
+      $('#surname').value = settings.surname;
+      return settings;
+    }
 
-      const unique = new Set();
-      let attempts = 0;
-      while (unique.size < 10 && attempts < 300) {
-        const candidate = buildName(category, keyword, style, placement, subtype, gender, surname);
-        if (keywordPositionIsValid(candidate, keyword, placement)) unique.add(candidate);
-        attempts += 1;
+    function candidateFor(s) {
+      const subtypes = SUBTYPE_OPTIONS[s.category].items.map(item => item[0]).filter(value => value !== 'any');
+      const subtype = s.subtype === 'any' && s.category !== 'title' ? pick(subtypes) : s.subtype;
+      return buildName(s.category, s.keyword, s.style, s.placement, subtype, s.gender, s.surname);
+    }
+
+    function acceptable(name, s) {
+      if (!keywordPositionIsValid(name, s.keyword, s.placement)) return false;
+      // Do not reject repetition the writer deliberately included in a keyword or surname.
+      const remainder = name.replace(s.keyword || '\u0000', '').replace(s.surname || '\u0000', '');
+      return !/(.)\1/u.test(remainder);
+    }
+
+    function generate(replaceIndex = null) {
+      const s = readSettings();
+      const signature = JSON.stringify(s);
+      const changed = signature !== state.signature;
+      if (changed) {
+        state.locked.clear(); state.recent = []; state.signature = signature;
+        replaceIndex = null;
       }
-      state.results = [...unique].slice(0, 10);
-      const genderText = ["person", "title"].includes(category) && gender !== "random" ? ` · ${gender === "male" ? "男" : "女"}` : "";
-      const keywordText = keyword ? ` · 关键词“${keyword}” · ${PLACEMENT_LABELS[placement]}` : "";
-      $("#resultsMeta").textContent = `${LABELS[category]} · ${subtypeLabel(category, subtype)} · ${STYLE_LABELS[style]}${genderText} · ${state.results.length} 个结果${keywordText}`;
+      if (replaceIndex !== null && state.locked.has(state.results[replaceIndex])) return;
+      const previous = [...state.results];
+      const result = Array.from({length: 10}, (_, i) => {
+        const name = previous[i];
+        return name && (state.locked.has(name) || (replaceIndex !== null && i !== replaceIndex)) ? name : null;
+      });
+      const used = new Set(result.filter(Boolean));
+      const recent = new Set([...state.recent, ...previous]);
+      let relaxed = false;
+      for (let i = 0; i < result.length; i++) {
+        if (result[i]) continue;
+        let fallback = null;
+        for (let attempt = 0; attempt < 500; attempt++) {
+          const name = candidateFor(s);
+          if (used.has(name) || !acceptable(name, s)) continue;
+          if (!recent.has(name)) { result[i] = name; break; }
+          fallback = name;
+        }
+        if (!result[i] && fallback) { result[i] = fallback; relaxed = true; }
+        if (result[i]) used.add(result[i]);
+      }
+      state.results = result.filter(Boolean);
+      state.recent = [...new Set([...state.recent, ...previous, ...state.results])].slice(-100);
+      const {category, subtype, style, keyword, placement} = s;
+      $('#resultsMeta').textContent = `${LABELS[category]} · ${subtypeLabel(category, subtype)} · ${STYLE_LABELS[style]} · ${state.results.length} 个结果` + (keyword ? ` · ${keyword} / ${PLACEMENT_LABELS[placement]}` : '');
+      const notes = [];
+      if (changed && previous.length) notes.push('设置已更新，原候选已解除锁定。');
+      if (relaxed) notes.push('当前组合较少，部分结果可能与最近批次重复。');
+      if (state.results.length < 10) notes.push(`本次找到 ${state.results.length} 个候选，可尝试更换关键词。`);
+      if (category === 'person' && keyword && placement === 'front' && s.surname) notes.push('关键词置于开头时优先使用关键词，不保留指定姓氏。');
+      $('#generationNote').textContent = notes.join(' ') || '优先避开最近 100 个候选。锁定喜欢的名字，再继续挑选。';
+      renderResults();
+    }
+
+    function button(label, action, className = 'action-btn') {
+      const b = document.createElement('button'); b.type = 'button'; b.className = className;
+      b.textContent = label; b.addEventListener('click', action); return b;
+    }
+
+    function toggleLock(name) {
+      if (!state.results.includes(name)) return;
+      if (state.locked.has(name)) state.locked.delete(name); else state.locked.add(name);
       renderResults();
     }
 
     function renderResults() {
-      const list = $("#results");
-      list.textContent = "";
+      const list = $('#results'); list.textContent = '';
       state.results.forEach((name, index) => {
-        const item = document.createElement("li");
-        item.className = "result";
-
-        const num = document.createElement("span");
-        num.className = "num";
-        num.textContent = String(index + 1).padStart(2, "0");
-
-        const text = document.createElement("span");
-        text.className = "name";
-        text.textContent = name;
-
-        const favorite = document.createElement("button");
-        favorite.type = "button";
-        favorite.className = `icon-btn${state.favorites.includes(name) ? " saved" : ""}`;
-        favorite.textContent = state.favorites.includes(name) ? "★" : "☆";
-        favorite.setAttribute("aria-label", state.favorites.includes(name) ? `取消收藏 ${name}` : `收藏 ${name}`);
-        favorite.addEventListener("click", () => toggleFavorite(name));
-
-        const copy = document.createElement("button");
-        copy.type = "button";
-        copy.className = "icon-btn";
-        copy.textContent = "⧉";
-        copy.setAttribute("aria-label", `复制 ${name}`);
-        copy.addEventListener("click", () => copyText(name, `已复制：${name}`));
-
-        item.append(num, text, favorite, copy);
-        list.appendChild(item);
+        const item = document.createElement('li'); item.className = 'result';
+        const num = document.createElement('span'); num.className = 'num'; num.textContent = String(index + 1).padStart(2, '0');
+        const text = document.createElement('span'); text.className = 'name'; text.textContent = name;
+        const actions = document.createElement('div'); actions.className = 'result-actions';
+        const locked = state.locked.has(name), saved = state.favorites.some(f => f.name === name);
+        const lock = button(locked ? '已锁定' : '锁定', () => toggleLock(name));
+        lock.setAttribute('aria-label', `${locked ? '解锁' : '锁定'} ${name}`); lock.setAttribute('aria-pressed', String(locked));
+        const replace = button('换一个', () => generate(index)); replace.disabled = locked;
+        replace.setAttribute('aria-label', `替换 ${name}`);
+        const favorite = button(saved ? '★ 已收藏' : '☆ 收藏', () => toggleFavorite(name));
+        favorite.setAttribute('aria-label', `${saved ? '取消收藏' : '收藏'} ${name}`); favorite.setAttribute('aria-pressed', String(saved));
+        const copy = button('复制', () => copyText(name, `已复制：${name}`)); copy.setAttribute('aria-label', `复制 ${name}`);
+        actions.append(lock, replace, favorite, copy); item.append(num, text, actions); list.appendChild(item);
       });
+      const count = state.locked.size;
+      $('#generateButton').textContent = count ? `保留 ${count} 个，换一批` : '生成十个';
+      $('#generateButton').disabled = count === 10;
+    }
+
+    function normalizeFavorites(data) {
+      const rows = Array.isArray(data) ? data : data && data.app === 'xuanjian' && data.version === 2 ? data.favorites : null;
+      if (!Array.isArray(rows) || rows.length > 5000) throw new Error('请选择玄鉴导出的 JSON 备份。');
+      const seen = new Set(), result = [];
+      for (const row of rows) {
+        const value = typeof row === 'string' ? {name: row, note: ''} : row;
+        if (!value || typeof value.name !== 'string' || (value.note !== undefined && typeof value.note !== 'string')) throw new Error('备份中存在无效记录，未导入。');
+        const name = value.name.trim(), note = (value.note || '').trim();
+        if (!name || [...name].length > 40 || [...note].length > 200 || /[\u0000-\u001f\u007f]/.test(name)) throw new Error('名称或备注格式不正确，未导入。');
+        if (!seen.has(name)) { result.push({name, note}); seen.add(name); }
+      }
+      if (result.length > FAVORITE_LIMIT) throw new Error('名字本最多保存 500 个名称，请拆分备份。');
+      return result;
     }
 
     function loadFavorites() {
-      try { return JSON.parse(localStorage.getItem("xuanjian-favorites") || "[]"); }
-      catch { return []; }
+      try {
+        const current = localStorage.getItem('xuanjian-favorites-v2');
+        return normalizeFavorites(JSON.parse(current === null ? localStorage.getItem('xuanjian-favorites') || '[]' : current));
+      } catch {
+        storageIssue = '无法读取本地收藏，原存储未改动。可导入备份；本次新增收藏请及时导出。';
+        return [];
+      }
     }
 
     function saveFavorites() {
-      try { localStorage.setItem("xuanjian-favorites", JSON.stringify(state.favorites)); }
-      catch { /* file-mode private browsing may block storage */ }
+      if (storageIssue.startsWith('无法读取')) { showStorageWarning(); return false; }
+      try {
+        localStorage.setItem('xuanjian-favorites-v2', JSON.stringify(state.favorites)); storageIssue = ''; showStorageWarning(); return true;
+      } catch {
+        storageIssue = '收藏暂时只保留在当前页面，浏览器未能保存。关闭前请导出备份。'; showStorageWarning(); return false;
+      }
+    }
+
+    function showStorageWarning() {
+      $('#storageWarning').textContent = storageIssue; $('#storageWarning').hidden = !storageIssue;
+    }
+
+    function changeFavorites(next) {
+      state.undo = state.favorites.map(f => ({...f})); state.favorites = next;
+      saveFavorites(); renderFavorites(); renderResults();
     }
 
     function toggleFavorite(name) {
-      const index = state.favorites.indexOf(name);
-      if (index >= 0) state.favorites.splice(index, 1);
-      else state.favorites.unshift(name);
-      state.favorites = state.favorites.slice(0, 80);
-      saveFavorites();
-      renderResults();
-      renderFavorites();
+      if (state.favorites.some(f => f.name === name)) changeFavorites(state.favorites.filter(f => f.name !== name));
+      else {
+        if (state.favorites.length >= FAVORITE_LIMIT) { showToast('名字本已满，请先导出或删除部分收藏。'); return; }
+        changeFavorites([{name, note: ''}, ...state.favorites]);
+      }
+    }
+
+    function undoFavorites() {
+      if (state.undo === null) return;
+      state.favorites = state.undo; state.undo = null;
+      saveFavorites(); renderFavorites(); renderResults(); showToast('已撤销上次名字本修改');
+    }
+
+    function importFavorites(data) {
+      const incoming = normalizeFavorites(data);
+      const known = new Set(state.favorites.map(f => f.name));
+      const added = incoming.filter(f => !known.has(f.name));
+      if (state.favorites.length + added.length > FAVORITE_LIMIT) throw new Error('合并后超过 500 个名称，未导入。请先导出或整理名字本。');
+      if (added.length) changeFavorites([...state.favorites, ...added]);
+      return {added: added.length, skipped: incoming.length - added.length};
+    }
+
+    function exportData() { return {app: 'xuanjian', version: 2, favorites: state.favorites}; }
+
+    function downloadFavorites(asText = false) {
+      const content = asText ? state.favorites.map(f => f.name + (f.note ? '\n备注：' + f.note : '')).join('\n\n') : JSON.stringify(exportData(), null, 2);
+      const blob = new Blob([content], {type: asText ? 'text/plain;charset=utf-8' : 'application/json;charset=utf-8'});
+      const url = URL.createObjectURL(blob), link = document.createElement('a');
+      link.href = url; link.download = 'xuanjian-favorites-' + new Date().toISOString().slice(0,10) + (asText ? '.txt' : '.json');
+      document.body.appendChild(link); link.click(); link.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
+
+    function editFavorite(name) {
+      const entry = state.favorites.find(f => f.name === name); if (!entry) return;
+      editingName = name; $('#editName').value = name; $('#editNote').value = entry.note; $('#editError').textContent = '';
+      $('#favoriteDialog').showModal(); $('#editName').focus();
+    }
+
+    function saveEditedFavorite(original, name, note) {
+      const row = normalizeFavorites([{name, note}])[0];
+      if (state.favorites.some(f => f.name === row.name && f.name !== original)) throw new Error('名字本中已有这个名称，请换一个名字。');
+      if (!state.favorites.some(f => f.name === original)) throw new Error('这条收藏已不存在，请重新打开。');
+      changeFavorites(state.favorites.map(f => f.name === original ? row : f));
     }
 
     function renderFavorites() {
-      const holder = $("#favoriteList");
-      holder.textContent = "";
-      if (!state.favorites.length) {
-        const empty = document.createElement("span");
-        empty.className = "empty";
-        empty.textContent = "还没有收藏；看到喜欢的名称时点一下 ☆。";
-        holder.appendChild(empty);
-        return;
+      const holder = $('#favoriteList'); holder.textContent = '';
+      const search = $('#favoriteSearch').value.trim().toLowerCase();
+      const filtered = state.favorites.filter(f => (f.name + ' ' + f.note).toLowerCase().includes(search));
+      $('#favoriteCount').textContent = `${state.favorites.length} / ${FAVORITE_LIMIT}`;
+      $('#undoFavorites').disabled = state.undo === null;
+      $('#clearFavorites').disabled = !state.favorites.length;
+      if (!filtered.length) {
+        const empty = document.createElement('span'); empty.className = 'empty';
+        empty.textContent = search ? '没有匹配的名字或备注。' : '还没有收藏；从候选里选一个喜欢的名字吧。'; holder.appendChild(empty);
       }
-      state.favorites.forEach((name) => {
-        const chip = document.createElement("button");
-        chip.type = "button";
-        chip.className = "fav-chip";
-        chip.textContent = name;
-        chip.title = "点击复制";
-        chip.addEventListener("click", () => copyText(name, `已复制：${name}`));
-        holder.appendChild(chip);
+      filtered.forEach(({name, note}) => {
+        const card = document.createElement('div'); card.className = 'favorite-entry';
+        const title = document.createElement('div'); title.className = 'favorite-name'; title.textContent = name;
+        const detail = document.createElement('p'); detail.className = 'favorite-note'; detail.textContent = note || '尚未添加备注';
+        const actions = document.createElement('div');
+        actions.append(button('复制', () => copyText(name, `已复制：${name}`)), button('编辑 / 备注', () => editFavorite(name)), button('删除', () => toggleFavorite(name)));
+        card.append(title, detail, actions); holder.appendChild(card);
       });
+      showStorageWarning();
     }
 
     async function copyText(text, message) {
@@ -888,31 +1083,48 @@
           area.style.opacity = "0";
           document.body.appendChild(area);
           area.select();
-          document.execCommand("copy");
+          const copied = document.execCommand("copy");
           area.remove();
+          if (!copied) throw new Error("Copy failed");
         }
         showToast(message);
       } catch { showToast("复制失败，请手动选择文字"); }
     }
 
-    let toastTimer;
     function showToast(message) {
       const toast = $("#toast");
       toast.textContent = message;
       toast.classList.add("show");
       clearTimeout(toastTimer);
-      toastTimer = setTimeout(() => toast.classList.remove("show"), 1600);
+      toastTimer = setTimeout(() => toast.classList.remove("show"), 3500);
     }
 
     $("#generatorForm").addEventListener("submit", (event) => { event.preventDefault(); generate(); });
     $("#category").addEventListener("change", () => { updateCategoryControls(); generate(); });
-    $("#copyAll").addEventListener("click", () => copyText(state.results.join("\n"), "十个结果已全部复制"));
-    $("#clearFavorites").addEventListener("click", () => {
-      state.favorites = [];
-      saveFavorites();
-      renderFavorites();
-      renderResults();
-      showToast("收藏已清空");
+    $("#copyAll").addEventListener("click", () => copyText(state.results.join("\n"), `已复制 ${state.results.length} 个结果`));
+    $("#clearFavorites").addEventListener("click", () => { if (state.favorites.length) { changeFavorites([]); showToast("名字本已清空，可撤销上次修改"); } });
+    $("#undoFavorites").addEventListener("click", undoFavorites);
+    $("#favoriteSearch").addEventListener("input", renderFavorites);
+    $("#exportFavorites").addEventListener("click", () => downloadFavorites());
+    $("#exportText").addEventListener("click", () => downloadFavorites(true));
+    $("#importFavorites").addEventListener("click", () => $("#importFile").click());
+    $("#importFile").addEventListener("change", async (event) => {
+      const file = event.target.files[0]; if (!file) return;
+      try {
+        if (file.size > 2 * 1024 * 1024) throw new Error("备份文件过大，请选择 2 MB 以内的 JSON 文件。");
+        const result = importFavorites(JSON.parse(await file.text()));
+        showToast(`已导入 ${result.added} 个，跳过 ${result.skipped} 个同名收藏（保留原备注）`);
+      } catch (error) { showToast(error instanceof SyntaxError ? "文件不是有效的 JSON，未导入。" : error.message); }
+      event.target.value = "";
+    });
+    $("#cancelEdit").addEventListener("click", () => $("#favoriteDialog").close());
+    $("#favoriteForm").addEventListener("submit", (event) => {
+      event.preventDefault();
+      try { saveEditedFavorite(editingName, $("#editName").value, $("#editNote").value); $("#favoriteDialog").close(); }
+      catch (error) { $("#editError").textContent = error.message; }
+    });
+    ["subtype", "style", "placement", "gender", "surname", "keyword"].forEach(id => {
+      $("#" + id).addEventListener(["surname", "keyword"].includes(id) ? "input" : "change", () => { state.locked.clear(); renderResults(); $("#generationNote").textContent = "设置已更改，点击生成应用新设置。"; });
     });
 
     updateCategoryControls();
